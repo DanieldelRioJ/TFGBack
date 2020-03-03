@@ -1,4 +1,4 @@
-from file_parser.MOTParser import MOTParser
+from io_tools.annotations.MOTParser import MOTParser
 
 
 class ParserFactory:
