@@ -1,0 +1,2 @@
+class VideoRepeated(Exception):
+    pass

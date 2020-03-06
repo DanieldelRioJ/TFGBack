@@ -1,22 +1,28 @@
 from flask import Blueprint,request,Response
 import re
 import os
+from io_tools.data import VideoInfDAO
+import datetime
+from objects import Video
+from exceptions import VideoRepeated
 
 video_controller = Blueprint('video_controller', __name__,url_prefix="/video")
 
 @video_controller.route("",methods=["POST"])
 def upload_video():
-    if 'file' not in request.files:
+    if 'video' not in request.files:
         print('No file part')
         return "No file part",400
-    file = request.files['file']
-    # if user does not select file, browser also
-    # submit an empty part without filename
-    if file.filename == '':
-        print('No selected file')
-        return "No selected file",400
+    video = request.files['video']
+    annotations = request.files['annotations']
+
+    try:
+        VideoInfDAO.add_video(Video.get_video_instance(video.filename,annotations.filename,str(datetime.datetime.now()),str(datetime.datetime.now()),69,5000,25),video,annotations)
+    except VideoRepeated:
+        return "There is already a video with the same videoname",409
+
     print(request.form.get("texto"))
-    return file.filename
+    return video.filename
 
 def get_chunk(full_path,byte1=None, byte2=None):
     file_size = os.stat(full_path).st_size
