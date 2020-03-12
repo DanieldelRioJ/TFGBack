@@ -1,6 +1,6 @@
 import cv2
 from io_tools.annotations.ParserFactory import ParserFactory
-from preprocessor import BackgroundGenerator
+from preprocessor import BackgroundGenerator,BackgroundGenerator2,BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 import threading
 
@@ -20,12 +20,15 @@ class Preprocessor:
         self.video_obj.fps=self.video.get(cv2.CAP_PROP_FPS)
         self.video_obj.frame_quantity = self.video.get(cv2.CAP_PROP_FRAME_COUNT)
 
+        print(f"Name: {video_name}, FPS: {self.video_obj.fps}, frames: {self.video_obj.frame_quantity}")
+
         self.finish=False
-        if chunk_size == None: chunk_size=60
+        if chunk_size == None: chunk_size=4
         self.chunk_size=chunk_size
 
         DataSchemeCreator.sprits_dirs_generator(path_video, self.object_dict)
-        self.background= BackgroundGenerator.Background(self.frame_dict, margin_horizontal, margin_vertical, block_division_size=block_size, sector_size=block_size)
+        #self.background= BackgroundGenerator.Background(self.frame_dict, margin_horizontal, margin_vertical, block_division_size=block_size, sector_size=block_size)
+        self.background = BackgroundGenerator3.Backgroundv3(self.frame_dict)
 
         first_frame=1
         while not self.has_finished():
@@ -42,9 +45,11 @@ class Preprocessor:
                 cv2.imshow("video", img)
                 cv2.waitKey(50)"""
 
-            #Repeat other iteration trying to improve the background image if not finished
-            if not self.background.is_completed():
-                self.background.upgrade(first_frame,imgs[0])#save image if completed
+            #Repeat other iteration trying to improve the background image
+            print(first_frame)
+            if len(imgs) == 0:
+                break
+            self.background.upgrade(first_frame,imgs[0])
             first_frame +=len(imgs)
 
             """cv2.namedWindow('progress', cv2.WINDOW_NORMAL)
@@ -54,8 +59,6 @@ class Preprocessor:
 
             imgs.clear()
 
-        img = self.background.background
-        cv2.imwrite(path_video + "background.jpg", self.background.background)
         """for appearance in self.frame_dict.get(1):
             img = cv2.rectangle(img=img, pt1=(appearance.col, appearance.row),
                                 pt2=(appearance.col + appearance.w, appearance.row + appearance.h), color=(0, 0, 255),
@@ -65,6 +68,8 @@ class Preprocessor:
         cv2.imshow("progress", img)
         cv2.waitKey()"""
 
+        cv2.imwrite(path_video + "background.jpg", self.background.get_background())
+        print("Finished!")
         self.video_obj.processed=True
 
     def __process__(self,first_frame,imgs):

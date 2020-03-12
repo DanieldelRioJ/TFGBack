@@ -13,6 +13,7 @@ from flask_cors import CORS
 
 import cv2
 import os
+import numpy as np
 
 app = Flask(__name__)
 app.register_blueprint(VideoController.video_controller)
@@ -56,36 +57,60 @@ def main():
             cv2.imshow("detection", img)
             cv2.waitKey()"""
 
-        video_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/17/video.mp4"
-        annotations_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/17/gt.txt"
-        objects,frame_dict=ParserFactory.get_parser(annotations_file).parse(remove_static_objects=True,iou_limit=0.8,static_porcentage_time=0.9)
-        video = cv2.VideoCapture(video_file)
-        ok = True
-        i=1
-        while (ok):
-            ok, img = video.read()
-            if not ok:
-                break
-            if  frame_dict.get(i) != None:
-                for appearance in frame_dict.get(i):
-                    img = cv2.rectangle(img=img, pt1=(appearance.col, appearance.row),
-                                        pt2=(appearance.col + appearance.w, appearance.row + appearance.h),
-                                        color=(0, 0, 255),
-                                        thickness=1)
-            cv2.namedWindow('detection', cv2.WINDOW_NORMAL)
-            cv2.resizeWindow('detection', 900, 600)
-            cv2.imshow("detection", img)
-            cv2.waitKey(1)
-            i+=1
-
     except FileNotFoundError:
         print("File not found")
     pass
 
+def create_background():
+    video_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/17/video.mp4"
+    backSub = cv2.createBackgroundSubtractorKNN()
+    video = cv2.VideoCapture(video_file)
+    while True:
+        ret, frame = video.read()
+        if frame is None:
+            break
+        fgMask = backSub.apply(frame)
+        rest,fgMask=cv2.threshold(fgMask,127,255,cv2.THRESH_BINARY)
+        res= cv2.bitwise_and(frame,frame,mask = 255-fgMask)
+        cv2.namedWindow('detection', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('detection', 900, 600)
+        cv2.imshow("detection", res)
+        cv2.waitKey(1)
+
+
+def show_iou():
+    video_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/17/video.mp4"
+    annotations_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/17/gt.txt"
+    """video_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/15/easy/video.mp4"
+    annotations_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/15/easy/gt.txt" """
+    objects, frame_dict = ParserFactory.get_parser(annotations_file).parse(remove_static_objects=True, iou_limit=0.99,
+                                                                           static_porcentage_time=0.99)
+    video = cv2.VideoCapture(video_file)
+    ok = True
+    i = 1
+    while (ok):
+        ok, img = video.read()
+        if not ok:
+            break
+        if frame_dict.get(i) != None:
+            for appearance in frame_dict.get(i):
+                img = cv2.rectangle(img=img, pt1=(appearance.col, appearance.row),
+                                    pt2=(appearance.col + appearance.w, appearance.row + appearance.h),
+                                    color=appearance.object.color,
+                                    thickness=2)
+                img = cv2.putText(img, str(appearance.object.id), (appearance.col, appearance.row),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+                img = cv2.putText(img, str(round(appearance.iou, 3)), (appearance.col, appearance.row + 20),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+        cv2.namedWindow('detection', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('detection', 900, 600)
+        cv2.imshow("detection", img)
+        cv2.waitKey(1)
+        i += 1
 if __name__ == '__main__':
     setup()
     #VideoInfDAO.add_video(Video.get_video_instance("video1",str(datetime.datetime.now()),str(datetime.datetime.now()),69,5000,25))
     #VideoInfDAO.add_video(Video.get_video_instance("video2", str(datetime.datetime.now()), str(datetime.datetime.now()), 69, 5000, 25))
-
-    main()
-    #app.run(debug=True,threaded=True,host='0.0.0.0')
+    #create_background()
+    #main()
+    app.run(debug=True,threaded=True,host='0.0.0.0')

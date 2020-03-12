@@ -7,7 +7,7 @@ class MOTParser():
     def __init__(self, filePath:str):
         self.filePath=filePath
 
-    def parse(self, remove_static_objects=False, iou_limit=0.8, static_porcentage_time=0.9):
+    def parse(self, remove_static_objects=False, iou_limit=0.99, static_porcentage_time=0.99):
         map = {}
         objects = {}
         with open(self.filePath, "r") as file:
@@ -50,6 +50,7 @@ class MOTParser():
                     for appearance in obj.appearances:
                         iou=Helper.get_iou(Point(last.col,last.row),Point(last.col+last.w,last.row+last.w),
                                           Point(appearance.col,appearance.row),Point(appearance.col+appearance.w,appearance.row+appearance.w))
+                        last=appearance
                         appearance.iou=iou
                         if iou > iou_limit:
                             appearance.object.static_points+=1
