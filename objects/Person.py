@@ -4,9 +4,12 @@ from objects.Appearance import Appearance
 class Person:
     def __init__(self,
                  id:int,
-                 appearances:[Appearance]=[],
+                 appearances,
                  color=None):
+        if appearances is None:
+            appearances = []
         self.id=id
+        self.static_points = 0
         self.appearances=appearances
         if(color==None):
             color=(randint(0,255),randint(0,255),randint(0,255))

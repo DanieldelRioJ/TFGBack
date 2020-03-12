@@ -1,2 +1,2 @@
-class VideoRepeated(Exception):
+class VideoRepeated(BaseException):
     pass

@@ -1,28 +1,31 @@
-from flask import Blueprint,request,Response
+from flask import Blueprint,request,Response,jsonify
 import re
 import os
 from io_tools.data import VideoInfDAO
 import datetime
-from objects import Video
-from exceptions import VideoRepeated
+from objects.Video import Video
+from exceptions.VideoRepeated import VideoRepeated
 
-video_controller = Blueprint('video_controller', __name__,url_prefix="/video")
+video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 
-@video_controller.route("",methods=["POST"])
-def upload_video():
-    if 'video' not in request.files:
-        print('No file part')
-        return "No file part",400
-    video = request.files['video']
-    annotations = request.files['annotations']
 
-    try:
-        VideoInfDAO.add_video(Video.get_video_instance(video.filename,annotations.filename,str(datetime.datetime.now()),str(datetime.datetime.now()),69,5000,25),video,annotations)
-    except VideoRepeated:
-        return "There is already a video with the same videoname",409
+@video_controller.route("/",methods=["GET"])
+def get_videos():
+    return jsonify(VideoInfDAO.get_video_index())
 
-    print(request.form.get("texto"))
-    return video.filename
+"""@video_controller.route("/<video_name>",methods=["GET"])
+def get_video(video_name):
+    return jsonify(VideoInfDAO.get_video(video_name))"""
+
+@video_controller.route("/",methods=["DELETE"])
+def delete_videos():
+    return jsonify(VideoInfDAO.deleteAll()),204
+
+@video_controller.route("/<video_name>",methods=["DELETE"])
+def delete_video(video_name):
+    if VideoInfDAO.delete(video_name) :
+        return "",204
+    return video_name+" not found",404
 
 def get_chunk(full_path,byte1=None, byte2=None):
     file_size = os.stat(full_path).st_size
@@ -42,7 +45,7 @@ def get_chunk(full_path,byte1=None, byte2=None):
     return chunk, start, length, file_size
 
 @video_controller.route('/<video_name>')
-def video(video_name:str):
+def get_video_media(video_name:str):
     range_header = request.headers.get('Range', None)
     byte1, byte2 = 0, None
     if range_header:
@@ -59,3 +62,17 @@ def video(video_name:str):
                     content_type='video/mp4', direct_passthrough=True)
     resp.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return resp
+
+@video_controller.route("",methods=["POST"])
+def upload_video():
+    if 'video' not in request.files:
+        print('No file part')
+        return "No file part",400
+    video = request.files['video']
+    annotations = request.files['annotations']
+
+    try:
+        video_name=video.filename+str(datetime.datetime.now()).replace(" ","_")
+        return VideoInfDAO.add_video(Video(video_name,video.filename,annotations.filename,str(datetime.datetime.now()),str(datetime.datetime.now()),-1,-1,-1),video,annotations).__dict__
+    except VideoRepeated:
+        return "There is already a video with the same videoname",409
