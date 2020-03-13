@@ -38,4 +38,9 @@ class Backgroundv3:
             background+=back_aux
         n_aux=np.repeat(self.n_background_matrix[:, :, np.newaxis], 3, axis=2)
         background=np.floor_divide(background,n_aux,out=np.zeros_like(background), where=n_aux!=0)
-        return cv2.convertScaleAbs(background)
+        background=cv2.convertScaleAbs(background)
+        aux=background.copy()
+        gray=cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
+        ret, threshold = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV)
+        return cv2.inpaint(background, threshold, 10, cv2.INPAINT_TELEA)
+
