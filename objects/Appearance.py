@@ -7,3 +7,4 @@ class Appearance:
         self.w=w
         self.h=h
         self.confidence=confidence
+        self.overlapped=False #needed in MovieScriptGenerator. False means that in our movieSciptGenerator, it does not overlap with other items

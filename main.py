@@ -6,8 +6,10 @@ from io_tools.data.DataSchemeCreator import setup
 from io_tools.data import VideoInfDAO
 from io_tools.annotations.ParserFactory import ParserFactory
 from objects import Video
+from video_generator import MovieScriptGenerator
 
 from controllers import VideoController
+from controllers import QueryController
 from flask import Flask,jsonify,request,send_file,make_response,Response
 from flask_cors import CORS
 
@@ -17,6 +19,7 @@ import numpy as np
 
 app = Flask(__name__)
 app.register_blueprint(VideoController.video_controller)
+app.register_blueprint(QueryController.query_controller)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 def main():
@@ -107,10 +110,49 @@ def show_iou():
         cv2.imshow("detection", img)
         cv2.waitKey(1)
         i += 1
+
+
+def generate_movie_script():
+    path="/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/.repository/videos/video.mp42020-03-13_17:20:20.741020/"
+    annotations_file = path+"gt.txt"
+    background=cv2.imread(path+"background.jpg")
+    #annotations_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/15/easy/gt.txt"
+    objects, frame_dict = ParserFactory.get_parser(annotations_file).parse(remove_static_objects=True, iou_limit=0.99,
+                                                                           static_porcentage_time=0.99)
+    x=MovieScriptGenerator.generate_movie_script(objects)
+    i=1
+    for frame in x:
+        img=background.copy()
+        for appearance in frame.appearance_list:
+            sprite=cv2.imread(f"{path}sprites/{appearance.object.id}/{appearance.frame}.jpg")
+            aux=img[appearance.row:appearance.row+appearance.h, appearance.col:appearance.col+appearance.w]
+            if appearance.overlapped:
+                sprite=cv2.addWeighted(sprite, 0.5, aux, 0.5, 0.0)
+                #sprite=cv2.scaleAdd(sprite,0.5,aux)
+            img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]=sprite
+            img = cv2.rectangle(img=img, pt1=(appearance.col, appearance.row),
+                                pt2=(appearance.col + appearance.w, appearance.row + appearance.h), color=appearance.object.color,
+                                thickness=1)
+            img = cv2.putText(img, str(appearance.object.id), (appearance.col, appearance.row),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255))
+            img = cv2.putText(img, str(datetime.timedelta(seconds=appearance.frame/7)).split(".")[0], (appearance.col, appearance.row+20),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255))
+            img = cv2.putText(img, str(appearance.overlapped), (appearance.col, appearance.row+40),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255))
+        img=cv2.putText(img, str(i), (0, 30),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+        cv2.imshow("script",img)
+        cv2.waitKey(100)
+        i+=1
+    pass
+
+
+
 if __name__ == '__main__':
     setup()
     #VideoInfDAO.add_video(Video.get_video_instance("video1",str(datetime.datetime.now()),str(datetime.datetime.now()),69,5000,25))
     #VideoInfDAO.add_video(Video.get_video_instance("video2", str(datetime.datetime.now()), str(datetime.datetime.now()), 69, 5000, 25))
     #create_background()
     #main()
+    #generate_movie_script()
     app.run(debug=True,threaded=True,host='0.0.0.0')
