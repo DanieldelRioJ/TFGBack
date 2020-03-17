@@ -1,4 +1,4 @@
-class Appearance:
+class Appearance(object):
     def __init__(self, object, frame, col:int, row:int, w:int, h:int, confidence:float=1):
         self.object=object
         self.frame=frame

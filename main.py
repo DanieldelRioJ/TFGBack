@@ -1,4 +1,6 @@
 import datetime
+import pickle
+import jsonpickle
 
 from preprocessor.Preprocessor import Preprocessor
 
@@ -7,6 +9,10 @@ from io_tools.data import VideoInfDAO
 from io_tools.annotations.ParserFactory import ParserFactory
 from objects import Video
 from video_generator import MovieScriptGenerator
+
+import json
+
+from video_generator.filter import FilterQuery,ColorFilter,TimeFilter
 
 from controllers import VideoController
 from controllers import QueryController
@@ -21,6 +27,7 @@ app = Flask(__name__)
 app.register_blueprint(VideoController.video_controller)
 app.register_blueprint(QueryController.query_controller)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
+
 
 def main():
     try:
@@ -113,13 +120,18 @@ def show_iou():
 
 
 def generate_movie_script():
-    path="/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/.repository/videos/video.mp42020-03-13_17:20:20.741020/"
+    path="/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/.repository/videos/5a0ffb3722c6e/"
     annotations_file = path+"gt.txt"
     background=cv2.imread(path+"background.jpg")
     #annotations_file = "/home/pankratium/Documentos/Universidad/4/TFG/Code/BackEnd/data/15/easy/gt.txt"
     objects, frame_dict = ParserFactory.get_parser(annotations_file).parse(remove_static_objects=True, iou_limit=0.99,
                                                                            static_porcentage_time=0.99)
+    video=VideoInfDAO.get_video("5a0ffb3722c6e")
+
+
+    objects=FilterQuery.FilterQuery().do_filter(objects,time_filter=TimeFilter.TimeFilter(0,1,"frames"),fps=video.fps)
     x=MovieScriptGenerator.generate_movie_script(objects)
+
     i=1
     for frame in x:
         img=background.copy()
@@ -144,8 +156,6 @@ def generate_movie_script():
         cv2.imshow("script",img)
         cv2.waitKey(100)
         i+=1
-    pass
-
 
 
 if __name__ == '__main__':
@@ -156,3 +166,9 @@ if __name__ == '__main__':
     #main()
     #generate_movie_script()
     app.run(debug=True,threaded=True,host='0.0.0.0')
+
+"""import hashlib
+import datetime
+import time
+
+print(format(int(time.time() * 1000000),'x'))"""

@@ -1,12 +1,18 @@
 from helpers import Helper
 from objects.Point import Point
+import time
 #It generates a list of frames containing the appearences of the objects suplied in the object_list.
 #Each item is a frame.
 
-class MovieScriptFrame:
+class MovieScriptFrame(object):
     def __init__(self, frame_number, appearance_list=[]):
         self.frame_number=frame_number
         self.appearance_list=appearance_list
+
+class MovieScript(object):
+    def __init__(self,id,frame_list=[]):
+        self.id=id
+        self.frame_list=frame_list
 
 
 def generate_movie_script(object_list):
@@ -32,7 +38,7 @@ def generate_movie_script(object_list):
 
             frame_list[frame_number-1].appearance_list.append(appearance)
             frame_number+=1
-    return frame_list
+    return MovieScript(format(int(time.time() * 1000000),'x'),frame_list)
 
 
 

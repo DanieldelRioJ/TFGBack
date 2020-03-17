@@ -1,33 +1,34 @@
 import cv2
 from io_tools.annotations.ParserFactory import ParserFactory
+from utils.Constants import REPOSITORY_NAME
 from preprocessor import BackgroundGenerator,BackgroundGenerator2,BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 import threading
 
 class Preprocessor:
-    def __init__(self,video_obj, path_video,video_name, path_annotations,chunk_size=None, margin_horizontal=0,margin_vertical=0, block_size=10):
-        self.video=cv2.VideoCapture(path_video+video_name)
+    def __init__(self,video_obj,chunk_size=None):
 
-        self.video_name=video_name
-        self.path_video=path_video
+        self.video_name = video_obj.filename
+        self.path_video = f"{REPOSITORY_NAME}/videos/{video_obj.name}/"
+
+        self.video=cv2.VideoCapture(f"{self.path_video}{video_obj.filename}")
         if not self.video.isOpened():
             raise FileNotFoundError
 
         #Modify object with fps, frames, and objects detected
-        self.object_dict, self.frame_dict = ParserFactory.get_parser(path_annotations).parse(remove_static_objects=True)
+        self.object_dict, self.frame_dict = ParserFactory.get_parser(f"{self.path_video}/{video_obj.annotations_filename}").parse(remove_static_objects=True)
         self.video_obj=video_obj
         self.video_obj.obj_number=len(self.object_dict)
         self.video_obj.fps=self.video.get(cv2.CAP_PROP_FPS)
         self.video_obj.frame_quantity = self.video.get(cv2.CAP_PROP_FRAME_COUNT)
 
-        print(f"Name: {video_name}, FPS: {self.video_obj.fps}, frames: {self.video_obj.frame_quantity}")
+        print(f"Name: {self.video_name}, FPS: {self.video_obj.fps}, frames: {self.video_obj.frame_quantity}")
 
         self.finish=False
         if chunk_size == None: chunk_size=4
         self.chunk_size=chunk_size
 
-        DataSchemeCreator.sprits_dirs_generator(path_video, self.object_dict)
-        #self.background= BackgroundGenerator.Background(self.frame_dict, margin_horizontal, margin_vertical, block_division_size=block_size, sector_size=block_size)
+        DataSchemeCreator.sprits_dirs_generator(f"{self.path_video}", self.object_dict)
         self.background = BackgroundGenerator3.Backgroundv3(self.frame_dict)
 
         first_frame=1
@@ -68,7 +69,7 @@ class Preprocessor:
         cv2.imshow("progress", img)
         cv2.waitKey()"""
 
-        cv2.imwrite(path_video + "background.jpg", self.background.get_background())
+        cv2.imwrite(self.path_video + "background.jpg", self.background.get_background())
         print("Finished!")
         self.video_obj.processed=True
 

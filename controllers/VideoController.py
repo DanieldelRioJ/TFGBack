@@ -2,16 +2,24 @@ from flask import Blueprint,request,Response,jsonify
 import re
 import os
 from io_tools.data import VideoInfDAO
+from io_tools.annotations.ParserFactory import ParserFactory
 import datetime
 from objects.Video import Video
 from exceptions.VideoRepeated import VideoRepeated
+import time
+from utils.Constants import REPOSITORY_NAME,VIDEOS_DIR,SPRITES_DIR
+from video_generator import MovieScriptGenerator,VirtualVideoGenerator
+import threading
+import jsonpickle
+from preprocessor.Preprocessor import Preprocessor
 
 video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 
 
 @video_controller.route("/",methods=["GET"])
 def get_videos():
-    return jsonify(VideoInfDAO.get_video_index())
+    return Response(jsonpickle.encode(VideoInfDAO.get_video_index()),200,mimetype="application/json")
+
 
 """@video_controller.route("/<video_name>",methods=["GET"])
 def get_video(video_name):
@@ -63,6 +71,45 @@ def get_video_media(video_name:str):
     resp.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return resp
 
+#Create virtual video
+@video_controller.route('/<video_name>/virtual',methods=["POST"])
+def create_virtual_video(video_name:str):
+
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    path_video, path_gt,_=VideoInfDAO.get_paths(video_obj)
+    object_map,frame_map=ParserFactory.get_parser(path_gt).parse(remove_static_objects=True)
+
+    movie_script=MovieScriptGenerator.generate_movie_script(object_map)
+    path_script = VideoInfDAO.get_script_path(video_obj, movie_script.id)
+    os.makedirs(os.path.dirname(path_script))
+
+    encoded=jsonpickle.encode(movie_script)
+    with open(path_script,"w") as file:
+        file.write(encoded)
+    return Response(encoded,200,mimetype="application/json")
+
+#Get part of virtual video
+@video_controller.route('/<video_name>/virtual/<virtual_id>',methods=["GET"])
+def get_part_virtual_video(video_name:str,virtual_id:str):
+    start=int(request.args.get('start'))
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    movie_script=VideoInfDAO.get_movie_script(video_obj,virtual_id)
+
+    VirtualVideoGenerator.generate_virtual_video(video_obj,movie_script,start)
+    return "good"
+
+def preprocess_video(video_obj,chunk_size=None):
+    pre=Preprocessor(video_obj,chunk_size)
+    VideoInfDAO.modify_video(pre.video_obj)
+    pre.close()
+
+
 @video_controller.route("",methods=["POST"])
 def upload_video():
     if 'video' not in request.files:
@@ -73,6 +120,12 @@ def upload_video():
 
     try:
         video_name=video.filename+str(datetime.datetime.now()).replace(" ","_")
-        return VideoInfDAO.add_video(Video(video_name,video.filename,annotations.filename,str(datetime.datetime.now()),str(datetime.datetime.now()),-1,-1,-1),video,annotations).__dict__
+        video_obj=VideoInfDAO.add_video(Video(format(int(time.time() * 1000000),'x'),"movie.mp4",annotations.filename,str(datetime.datetime.now()),str(datetime.datetime.now()),-1,-1,-1),video,annotations)
+        x = threading.Thread(target=preprocess_video,
+                             args=(video_obj,None))
+        x.start()
+
+        return video_obj.__dict__
     except VideoRepeated:
         return "There is already a video with the same videoname",409
+

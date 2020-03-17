@@ -1,7 +1,7 @@
 from random import randint
 from objects.Appearance import Appearance
 
-class Person:
+class Person(object):
     def __init__(self,
                  id:int,
                  appearances,

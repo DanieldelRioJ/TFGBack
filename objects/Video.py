@@ -1,4 +1,4 @@
-class Video:
+class Video(object):
     def __init__(self, name, filename, annotations_filename, upload_date, recorded_date, frame_quantity=-1, fps=-1,
                  processed=False):
         self.name = name
