@@ -159,13 +159,14 @@ def generate_movie_script():
 
 
 if __name__ == '__main__':
-    setup()
+    #setup()
     #VideoInfDAO.add_video(Video.get_video_instance("video1",str(datetime.datetime.now()),str(datetime.datetime.now()),69,5000,25))
     #VideoInfDAO.add_video(Video.get_video_instance("video2", str(datetime.datetime.now()), str(datetime.datetime.now()), 69, 5000, 25))
     #create_background()
     #main()
     #generate_movie_script()
-    app.run(debug=True,threaded=True,host='0.0.0.0')
+    #app.run(debug=True,threaded=True,host='0.0.0.0')
+    VideoController.get_part_virtual_video("5a126d3f7686a","5a19972c39875")
 
 """import hashlib
 import datetime

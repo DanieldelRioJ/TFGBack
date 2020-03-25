@@ -1,4 +1,4 @@
-from objects.Person import Person
+from objects.VideoObject import Person
 from objects.Appearance import Appearance
 from helpers import Helper
 from objects.Point import Point
