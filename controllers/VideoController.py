@@ -102,9 +102,10 @@ def create_virtual_video(video_name:str):
         return f"Video {video_name} does not exists",404
 
     path_video, path_gt,_=VideoInfDAO.get_paths(video_obj)
-    object_map,frame_map=ParserFactory.get_parser(path_gt).parse(remove_static_objects=True)
+    path_gt=VideoInfDAO.get_gt_adapted_path(video_obj)
+    object_map,frame_map=ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
 
-    object_map=FilterQuery.do_filter(object_map,body,fps=video_obj.fps)
+    object_map=FilterQuery.do_filter(object_map,body,fps=video_obj.fps_adapted)
     movie_script=MovieScriptGenerator.generate_movie_script(object_map)
     path_script = VideoInfDAO.get_script_path(video_obj, movie_script.id)
     os.makedirs(os.path.dirname(path_script))
@@ -119,7 +120,7 @@ def create_virtual_video(video_name:str):
 def get_part_virtual_video(video_name:str,virtual_id:str):
     print("start")
     start=None
-    #start=request.args.get('start')
+    start=request.args.get('start')
     if start is None:
         start=0
     else:
@@ -133,7 +134,7 @@ def get_part_virtual_video(video_name:str,virtual_id:str):
     print("Generating virtual video")
     video_path=VirtualVideoGenerator.generate_virtual_video(video_obj,movie_script,start)
     print("Video generated")
-    #return send_file(video_path,mimetype="video/mp4")
+    return send_file(video_path,mimetype="video/mp4")
 
 def preprocess_video(video_obj,chunk_size=None):
     pre=Preprocessor(video_obj,chunk_size)

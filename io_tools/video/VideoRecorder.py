@@ -26,30 +26,13 @@ def save_frames_as_video_ffmpeg(video_obj,imgs,movie_script_id,start):
     video_path=f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}"
     temporal_dir_name=f"{video_path}/temporal/{temporal_id}"
     os.makedirs(temporal_dir_name)
-    pool=ThreadPool(processes=4)
+    pool=ThreadPool(processes=os.cpu_count()//2)
 
     print("Start recording frames")
-    del imgs[1::2]
     pool.starmap(functools.partial(__save_frame__,temporal_dir_name),zip(imgs,range(1,len(imgs)+1)))
     print("Stop recording frames")
 
-    """index=1
-    for img in imgs:
-        name=temporal_dir_name+"/{index:06}.jpg".format(index=index)
-        print(name)
-        cv2.imwrite(name,img)
-        index+=1"""
-
-    #command=f"ffmpeg -r {fps} -i {temporal_dir_name}/%06d.jpg -vcodec libvpx -acodec libvorbis -deadline good -crf 4 {file_path}"
-    """command=f"ffmpeg -y -r {video_obj.fps} -i {temporal_dir_name}/%06d.jpg -c:v libx264 -profile:v main -level 3.2 " \
-            f"-pix_fmt yuv420p -preset ultrafast -tune zerolatency -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml " \
-            f"-c:a aac {video_path}/virtual/{movie_script_id}/{start}.mp4"""
-
-    """command = f"ffmpeg -y -r {video_obj.fps} -i {temporal_dir_name}/%06d.jpg -c:v libx264 -profile:v main -level 3.2 " \
-              f"-preset ultrafast -tune zerolatency -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml " \
-              f"{video_path}/virtual/{movie_script_id}/{start}.mp4" """
-
-    command = f"ffmpeg -y -r {video_obj.fps} -i {temporal_dir_name}/%06d.jpg -profile:v main -g -1 \
+    command = f"ffmpeg -y -r {video_obj.fps_adapted} -i {temporal_dir_name}/%06d.jpg -profile:v main -g -1 \
             -preset ultrafast -c:v libx264 \
             -f mp4 -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml \
             {video_path}/virtual/{movie_script_id}/{start}.mp4"
@@ -59,3 +42,17 @@ def save_frames_as_video_ffmpeg(video_obj,imgs,movie_script_id,start):
     shutil.rmtree(temporal_dir_name, ignore_errors=True)
 
     return f"{video_path}/virtual/{movie_script_id}/{start}.mp4"
+
+
+
+
+
+
+#command=f"ffmpeg -r {fps} -i {temporal_dir_name}/%06d.jpg -vcodec libvpx -acodec libvorbis -deadline good -crf 4 {file_path}"
+"""command=f"ffmpeg -y -r {video_obj.fps} -i {temporal_dir_name}/%06d.jpg -c:v libx264 -profile:v main -level 3.2 " \
+        f"-pix_fmt yuv420p -preset ultrafast -tune zerolatency -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml " \
+        f"-c:a aac {video_path}/virtual/{movie_script_id}/{start}.mp4"""
+
+"""command = f"ffmpeg -y -r {video_obj.fps} -i {temporal_dir_name}/%06d.jpg -c:v libx264 -profile:v main -level 3.2 " \
+          f"-preset ultrafast -tune zerolatency -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml " \
+          f"{video_path}/virtual/{movie_script_id}/{start}.mp4" """

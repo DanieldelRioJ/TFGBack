@@ -114,7 +114,7 @@ def __write_video__(video_dir, video_filename):
 
 
 def save_sprit(path_video,frame_number,id_object,img):
-    cv2.imwrite(f"{path_video}{SPRITES_DIR}{os.path.sep}{id_object}{os.path.sep}{frame_number}.jpg",img,[cv2.IMWRITE_JPEG_QUALITY, 9])
+    cv2.imwrite(f"{path_video}{SPRITES_DIR}{os.path.sep}{id_object}{os.path.sep}{frame_number}.jpg",img,[cv2.IMWRITE_JPEG_QUALITY, 30])
 
 def get_sprit(video_obj,object_id,frame_number):
     return cv2.imread(f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/{SPRITES_DIR}/{object_id}/{frame_number}.jpg")
@@ -134,5 +134,16 @@ def get_paths(video_obj):
         ,f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/gt.txt"\
         ,f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/background.jpg"
 
+def get_gt_adapted_path(video_obj):
+    return f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/gt_adapted.txt"
+
 def get_script_path(video_obj,movie_script_id):
     return f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/virtual/{movie_script_id}/movie_script.json"
+
+def save_background(video_obj,background,quality):
+    cv2.imwrite(f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/background.jpg",background,[cv2.IMWRITE_JPEG_QUALITY, quality])
+
+def save_gt_adapted(video_obj, gt):
+    file_path=f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/gt_adapted.txt"
+    with open(file_path,"w") as file:
+        file.writelines(gt)
