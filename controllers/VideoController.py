@@ -93,6 +93,32 @@ def get_background(video_name:str):
 
     return send_file(VideoInfDAO.get_background(video_obj),mimetype="image/jpg")
 
+#Get objects of video
+@video_controller.route('/<video_name>/objects',methods=["GET"])
+def get_objects(video_name:str):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    path_gt = VideoInfDAO.get_gt_adapted_path(video_obj)
+    object_map, _ = ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
+    for obj_id in object_map:
+        obj=object_map[obj_id]
+        obj.appearances=None
+    return jsonpickle.encode(object_map, unpicklable=False)
+
+#Get portrait of object
+@video_controller.route('/<video_name>/objects/<object_id>/<frame_number>',methods=["GET"])
+def get_object_portrait(video_name:str, object_id:int,frame_number:int):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    return send_file(VideoInfDAO.get_sprit_path(video_obj,object_id,frame_number),mimetype="image/jpg")
+
+
+
+
 #Create virtual video
 @video_controller.route('/<video_name>/virtual',methods=["POST"])
 def create_virtual_video(video_name:str):
@@ -106,13 +132,12 @@ def create_virtual_video(video_name:str):
     object_map,frame_map=ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
 
     object_map=FilterQuery.do_filter(object_map,body,fps=video_obj.fps_adapted)
-    movie_script=MovieScriptGenerator.generate_movie_script(object_map)
+    movie_script, script_lists=MovieScriptGenerator.generate_movie_script(object_map, video_obj)
     path_script = VideoInfDAO.get_script_path(video_obj, movie_script.id)
     os.makedirs(os.path.dirname(path_script))
 
     encoded=jsonpickle.encode(movie_script)
-    with open(path_script,"w") as file:
-        file.write(encoded)
+    VideoInfDAO.save_movie_script(video_obj,movie_script,script_lists)
     return Response(encoded,200,mimetype="application/json")
 
 #Get part of virtual video

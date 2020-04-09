@@ -119,6 +119,10 @@ def save_sprit(path_video,frame_number,id_object,img):
 def get_sprit(video_obj,object_id,frame_number):
     return cv2.imread(f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/{SPRITES_DIR}/{object_id}/{frame_number}.jpg")
 
+def get_sprit_path(video_obj,object_id,frame_number):
+    return f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/{SPRITES_DIR}/{object_id}/{frame_number}.jpg"
+
+
 def get_background(video_obj):
     return f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/background.jpg"
 
@@ -128,6 +132,26 @@ def get_movie_script(video_obj, virtual_id):
     with open(path,"r") as file:
         movie_script=jsonpickle.decode(file.read())
     return movie_script
+
+def get_script_list(video_obj, virtual_id, i):
+    path= f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/virtual/{virtual_id}/{i}.json"
+    movie_script=None
+    with open(path,"r") as file:
+        movie_script=jsonpickle.decode(file.read())
+    return movie_script
+
+def save_movie_script(video_obj, movie_script, script_lists):
+    path = f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/virtual/{movie_script.id}/"
+    encoded = jsonpickle.encode(movie_script)
+    with open(path+"movie_script.json", "w") as file:
+        file.write(encoded)
+
+    i=0
+    for script_list in script_lists:
+        encoded = jsonpickle.encode(script_list)
+        with open(path + f"{i}.json", "w") as file:
+            file.write(encoded)
+        i+=1
 
 def get_paths(video_obj):
     return f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}/converted.mp4"\

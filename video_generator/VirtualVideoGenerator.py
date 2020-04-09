@@ -9,9 +9,10 @@ import cv2
 import os
 import datetime
 
-def parallelFunction(movie_script, video_obj, background, i):
+def parallelFunction(script_list, video_obj, background, i):
     # remember, movie_script frame 1 is in position 0
-    frame_script = movie_script.frame_list[i]
+    frame_script = script_list[i]
+
     img = background.copy()
     for appearance in frame_script.appearance_list:
         sprite = VideoInfDAO.get_sprit(video_obj, appearance.object.id, appearance.frame)
@@ -57,11 +58,12 @@ def generate_virtual_video(video_obj,movie_script,start=0,duration=10, units="se
 
     background=cv2.imread(background_path)
 
-    lenght=len(movie_script.frame_list)
-    end=min(lenght,start+duration)
+    script_list=VideoInfDAO.get_script_list(video_obj,movie_script.id,int(start/(video_obj.fps_adapted*10)))
+
+    lenght=movie_script.frame_quantity-start
+    end=min(lenght,duration)
     imgs=[]
 
     pool=ThreadPool(processes=os.cpu_count()//2)
-    imgs=pool.map(functools.partial(parallelFunction,movie_script, video_obj, background), range(start,end))
-
+    imgs=pool.map(functools.partial(parallelFunction,script_list, video_obj, background), range(0,end))
     return VideoRecorder.save_frames_as_video_ffmpeg(video_obj,imgs,movie_script.id,start)

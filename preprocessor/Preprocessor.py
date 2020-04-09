@@ -7,6 +7,8 @@ from io_tools.annotations import MOTParser
 from helpers import Helper
 import threading
 import math
+from shapely.geometry import Polygon
+
 
 class Preprocessor:
     def __init__(self,video_obj,chunk_size=None):
@@ -66,17 +68,34 @@ class Preprocessor:
 
         #Get more information (path, direction, speed etc).
         self.object_dict=Helper.convert_frame_map_to_object_map(self.new_frame_map,self.object_dict)
+        #Calculate speed
         for obj_id in self.object_dict:
-            appearances=self.object_dict.get(obj_id).appearances
+            obj=self.object_dict.get(obj_id)
+            appearances=obj.appearances
             last_appearance=appearances[0]
+            biggerArea=0
             if(last_appearance.center_col==None):
                 last_appearance.center_col, last_appearance.center_row=__calculate_center__(last_appearance)
+
+            speed=0 #For calculation of average speed
             for appearance in appearances[1:]:
+
+                #Calculate bigger picture for portrait
+                area=appearance.w*appearance.h
+                if area>biggerArea:
+                    obj.portrait=appearance.frame
+                    biggerArea=area
+
+
+                #Calculate speed
                 appearance.center_col, appearance.center_row = __calculate_center__(appearance)
                 col,row=appearance.center_col-last_appearance.center_col,appearance.center_row-last_appearance.center_row
                 appearance.speed=math.sqrt((row**2)+(col**2))
+                speed+=appearance.speed #used in calculation of average speed
                 last_appearance=appearance
-        VideoInfDAO.save_gt_adapted(self.video_obj,MOTParser.parseBack(self.new_frame_map))
+            speed/=len(appearances)
+            obj.average_speed=speed
+        VideoInfDAO.save_gt_adapted(self.video_obj,MOTParser.parseBack(self.new_frame_map, self.object_dict))
 
 
         print("Finished!")

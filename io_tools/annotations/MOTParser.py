@@ -42,6 +42,8 @@ class MOTParser():
             objects[id].appearances.append(appearance)
             map.get(frame).append(appearance)
 
+
+
         # If we have to remove static objects, we use Iou
         if remove_static_objects:
             static_elements = []
@@ -56,7 +58,7 @@ class MOTParser():
                     appearance.iou = iou
                     if iou > iou_limit:
                         appearance.object.static_points += 1
-                if obj.static_points / len(obj.appearances) > static_porcentage_time:
+                if obj.static_points / len(obj.appearances) >= static_porcentage_time:
                     static_elements.append(id)
 
             print(f"Removed elements = {len(static_elements)}")
@@ -71,9 +73,12 @@ class MOTParser():
     def __advanced_parser__(self,lines):
         map = {}
         objects = {}
+        i=0
         for line in lines:
             if line[0] == "#":  # Comentario
                 continue
+            if line[0] == ":":  # Fin bloque apariciones
+                break
             attr = line.replace('\n','').split(",")
             id = int(attr[1])
             frame = int(attr[0])
@@ -110,6 +115,14 @@ class MOTParser():
                                     )
             objects[id].appearances.append(appearance)
             map.get(frame).append(appearance)
+            i+=1
+        for line in lines[i+2:]:
+            if line[0] == "#":  # Comentario
+                continue
+            attr=line.split(",")
+            id=int(attr[0])
+            objects[id].portrait = attr[1]
+            objects[id].avarage_speed=attr[2]
         return objects,map
 
     def parse(self, remove_static_objects=False, iou_limit=IOU_LIMIT, static_porcentage_time=IOU_PORCENTAGE):
@@ -123,7 +136,7 @@ class MOTParser():
                 objects, map = self.__advanced_parser__(lines)
         return objects, map
 
-def parseBack(frame_map):
+def parseBack(frame_map, object_dict):
     str=[]
     str.append("#{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed}\n")
     for frame_number in frame_map:
@@ -131,4 +144,9 @@ def parseBack(frame_map):
         for appearance in frame_appearances:
             str.append(f"{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed}\n")
 
+    str.append(":\n")
+    str.append("#{object.id},{object.portrait},{object.average_speed}\n")
+    for obj_id in object_dict:
+        obj=object_dict[obj_id]
+        str.append(f"{obj.id},{obj.portrait},{obj.average_speed}\n")
     return str

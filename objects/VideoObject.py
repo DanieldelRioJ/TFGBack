@@ -14,3 +14,5 @@ class Person(object):
         if(color==None):
             color=(randint(0,255),randint(0,255),randint(0,255))
         self.color=color
+        self.portrait=None
+        self.average_speed=None
