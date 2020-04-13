@@ -10,6 +10,8 @@ from io_tools.annotations.ParserFactory import ParserFactory
 from objects import Video
 from video_generator import MovieScriptGenerator
 
+from utils import Pruebas
+
 import json
 
 from video_generator.filter import FilterQuery,ColorFilter,TimeFilter
@@ -165,6 +167,7 @@ if __name__ == '__main__':
     #create_background()
     #main()
     #generate_movie_script()
+    Pruebas.prueba()
     app.run(debug=True,threaded=True,host='0.0.0.0')
     #VideoController.get_part_virtual_video("5a1b0a1c8e276","5a1b0bb9987c0")
 

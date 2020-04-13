@@ -107,6 +107,21 @@ def get_objects(video_name:str):
         obj.appearances=None
     return jsonpickle.encode(object_map, unpicklable=False)
 
+#Get object of video
+@video_controller.route('/<video_name>/objects/<object_id>',methods=["GET"])
+def get_object(video_name:str,object_id:int):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    path_gt = VideoInfDAO.get_gt_adapted_path(video_obj)
+    object_map, _ = ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
+    obj=object_map.get(int(object_id))
+    if obj is None:
+        return f"Object with id: '{object_id}' not found",404
+    obj.appearances=None
+    return jsonpickle.encode(obj, unpicklable=False)
+
 #Get portrait of object
 @video_controller.route('/<video_name>/objects/<object_id>/<frame_number>',methods=["GET"])
 def get_object_portrait(video_name:str, object_id:int,frame_number:int):
@@ -138,7 +153,20 @@ def create_virtual_video(video_name:str):
 
     encoded=jsonpickle.encode(movie_script)
     VideoInfDAO.save_movie_script(video_obj,movie_script,script_lists)
-    return Response(encoded,200,mimetype="application/json")
+    return Response(encoded,201,mimetype="application/json")
+
+#Get part of virtual video
+@video_controller.route('/<video_name>/virtual/<virtual_id>/<movie_part>',methods=["GET"])
+def get_movie_script_part(video_name:str,virtual_id:str,movie_part:int):
+    movie_part=int(movie_part)
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+    movie_script_part=VideoInfDAO.get_script_list(video_obj,virtual_id,movie_part)
+    for frame in movie_script_part:
+        for appearance in frame.appearance_list:
+            appearance.object=appearance.object.id
+    return jsonpickle.encode(movie_script_part,unpicklable=False)
 
 #Get part of virtual video
 @video_controller.route('/<video_name>/virtual/<virtual_id>',methods=["GET"])

@@ -16,3 +16,4 @@ class Person(object):
         self.color=color
         self.portrait=None
         self.average_speed=None
+        self.angle=None

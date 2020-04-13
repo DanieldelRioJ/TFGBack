@@ -119,10 +119,14 @@ class MOTParser():
         for line in lines[i+2:]:
             if line[0] == "#":  # Comentario
                 continue
-            attr=line.split(",")
+            attr=line.replace('\n','').split(",")
             id=int(attr[0])
             objects[id].portrait = attr[1]
-            objects[id].avarage_speed=attr[2]
+            objects[id].average_speed=float(attr[2])
+            objects[id].first_appearance=objects[id].appearances[0].frame
+            objects[id].last_appearance = objects[id].appearances[-1].frame
+            if attr[3]!="None":
+                objects[id].angle=float(attr[3])
         return objects,map
 
     def parse(self, remove_static_objects=False, iou_limit=IOU_LIMIT, static_porcentage_time=IOU_PORCENTAGE):
@@ -145,8 +149,8 @@ def parseBack(frame_map, object_dict):
             str.append(f"{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed}\n")
 
     str.append(":\n")
-    str.append("#{object.id},{object.portrait},{object.average_speed}\n")
+    str.append("#{object.id},{object.portrait},{object.average_speed},{object.direction}\n")
     for obj_id in object_dict:
         obj=object_dict[obj_id]
-        str.append(f"{obj.id},{obj.portrait},{obj.average_speed}\n")
+        str.append(f"{obj.id},{obj.portrait},{obj.average_speed},{obj.angle}\n")
     return str

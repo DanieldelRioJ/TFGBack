@@ -4,8 +4,10 @@ from utils.Constants import REPOSITORY_NAME
 from preprocessor import BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 from io_tools.annotations import MOTParser
-from helpers import Helper
+from helpers import Helper,LinearRegressionHelper
 import threading
+from objects import Point
+import numpy as np
 import math
 from shapely.geometry import Polygon
 
@@ -64,7 +66,10 @@ class Preprocessor:
             first_real_frame +=len(imgs)
             imgs.clear()
 
-        VideoInfDAO.save_background(self.video_obj,self.background.get_background(),30)
+        background_image=self.background.get_background()
+        VideoInfDAO.save_background(self.video_obj,background_image,30)
+        self.video_obj.width = background_image.shape[1]
+        self.video_obj.height = background_image.shape[0]
 
         #Get more information (path, direction, speed etc).
         self.object_dict=Helper.convert_frame_map_to_object_map(self.new_frame_map,self.object_dict)
@@ -89,12 +94,15 @@ class Preprocessor:
 
                 #Calculate speed
                 appearance.center_col, appearance.center_row = __calculate_center__(appearance)
-                col,row=appearance.center_col-last_appearance.center_col,appearance.center_row-last_appearance.center_row
-                appearance.speed=math.sqrt((row**2)+(col**2))
+                appearance.speed=Helper.distance(appearance.center_col,appearance.center_row,last_appearance.center_col,last_appearance.center_row)
                 speed+=appearance.speed #used in calculation of average speed
                 last_appearance=appearance
             speed/=len(appearances)
             obj.average_speed=speed
+            __set_object_angle_direction__(obj)
+            path_image=background_image.copy()
+            path_image=__draw_path__(path_image,[(int(appearance.center_col),int(appearance.center_row)) for appearance in obj.appearances[::10]])
+            VideoInfDAO.save_sprit(self.path_video,"path",obj.id,path_image)
         VideoInfDAO.save_gt_adapted(self.video_obj,MOTParser.parseBack(self.new_frame_map, self.object_dict))
 
 
@@ -150,3 +158,23 @@ class Preprocessor:
 
 def __calculate_center__(appearance):
     return (appearance.col * 2 + appearance.w) / 2, (appearance.row * 2 + appearance.h) / 2
+
+def __set_object_angle_direction__(obj):
+    angle=LinearRegressionHelper.get_direction_angle([Point.Point(appearance.center_col,appearance.center_row) for appearance in obj.appearances])
+    """if angle!=None:
+        img = np.zeros((512, 512, 3), np.uint8)
+        pendiente = math.tan(angle)
+        img=cv2.line(img,(256, 256), (512,int(256*pendiente+256)), (255, 255, 255), 2)
+        img=cv2.putText(img, "sp:"+str(obj.id), (30,30),
+                              cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255))
+        cv2.imshow("angle",img)
+        cv2.waitKey()"""
+    obj.angle=angle
+
+def __draw_path__(path_image, points):
+    last_point=points[0]
+    for point in points[1:-1]:
+        path_image=cv2.line(path_image, last_point, point, (0, 0, 255), 5, cv2.FILLED)
+        last_point=point
+    path_image=cv2.arrowedLine(path_image, points[-min(len(points),5)],last_point, (0, 0, 255), 5, cv2.FILLED,tipLength=0.2)
+    return path_image
