@@ -1,4 +1,7 @@
 import math
+import os
+import re
+from shapely.geometry import Polygon
 
 #get iou of 2 boxes
 #intersection = common area
@@ -88,3 +91,35 @@ def convert_frame_map_to_object_map(frame_map, object_list):
 def distance(x1:int,y1:int,x2:int,y2:int):
     x,y=x1-x2,y1-y2
     return math.sqrt((x**2)+(y**2))
+
+#Get file chunk
+def get_chunk(full_path,range_header):
+    byte1, byte2 = 0, None
+    if range_header:
+        match = re.search(r'(\d+)-(\d*)', range_header)
+        groups = match.groups()
+
+        if groups[0]:
+            byte1 = int(groups[0])
+        if groups[1]:
+            byte2 = int(groups[1])
+
+    file_size = os.stat(full_path).st_size
+    start = 0
+    length = 102400
+
+    if byte1 < file_size:
+        start = byte1
+    if byte2:
+        length = byte2 + 1 - byte1
+    else:
+        length = file_size - start
+
+    with open(full_path, 'rb') as f:
+        f.seek(start)
+        chunk = f.read(length)
+    return chunk, start, length, file_size
+
+def get_polygon_by_appearance(apperance):
+    return Polygon([(apperance.col,apperance.row),(apperance.col+apperance.w,apperance.row),
+                   (apperance.col+apperance.w,apperance.row+apperance.h),(apperance.col,apperance.row+apperance.h)])

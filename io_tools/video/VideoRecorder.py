@@ -43,6 +43,27 @@ def save_frames_as_video_ffmpeg(video_obj,imgs,movie_script_id,start):
 
     return f"{video_path}/virtual/{movie_script_id}/{start}.mp4"
 
+def generate_individual_video(video_obj,video_obj_opencv,obj):
+    temporal_id = format(int(time.time() * 1000000), 'x')
+    video_path = f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}"
+    temporal_dir_name = f"{video_path}/temporal/{temporal_id}"
+    os.makedirs(temporal_dir_name)
+
+    video_obj_opencv.set(1, obj.first_appearance - 1) #CAP_PROP_POS_FRAMES = 1
+    for i,appearance in enumerate(obj.appearances):
+        res,img=video_obj_opencv.read()
+        img=cv2.rectangle(img=img, pt1=(appearance.col, appearance.row),
+                            pt2=(appearance.col + appearance.w, appearance.row + appearance.h),
+                            color=(0,0,255),
+                            thickness=3)
+        __save_frame__(temporal_dir_name,img,i)
+
+    command = f"ffmpeg -y -r {video_obj.fps_adapted} -i {temporal_dir_name}/%06d.jpg -preset ultrafast {video_path}/sprites/{obj.id}/alone.mp4"
+
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+    process.wait()
+    shutil.rmtree(temporal_dir_name, ignore_errors=True)
+
 
 
 

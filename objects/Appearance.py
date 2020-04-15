@@ -8,6 +8,7 @@ class Appearance(object):
         self.h=h
         self.confidence=confidence
         self.overlapped=False #needed in MovieScriptGenerator. False means that in our movieSciptGenerator, it does not overlap with other items
+        self.overlapped_coordinates=[]
         self.center_col=center_col
         self.center_row=center_row
         self.speed=speed

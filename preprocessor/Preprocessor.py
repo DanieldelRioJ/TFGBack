@@ -1,5 +1,4 @@
 import cv2
-from io_tools.annotations.ParserFactory import ParserFactory
 from utils.Constants import REPOSITORY_NAME
 from preprocessor import BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
@@ -7,9 +6,6 @@ from io_tools.annotations import MOTParser
 from helpers import Helper,LinearRegressionHelper
 import threading
 from objects import Point
-import numpy as np
-import math
-from shapely.geometry import Polygon
 
 
 class Preprocessor:
@@ -17,12 +13,12 @@ class Preprocessor:
 
         self.path_video = f"{REPOSITORY_NAME}/videos/{video_obj.id}/"
 
-        self.video=cv2.VideoCapture(f"{self.path_video}video.mp4")
+        self.video=cv2.VideoCapture(f"{self.path_video}{video_obj.original_filename}")
         if not self.video.isOpened():
             raise FileNotFoundError
 
         #Modify object with fps, frames, and objects detected
-        self.object_dict, self.frame_dict = ParserFactory.get_parser(f"{self.path_video}/gt.txt").parse(remove_static_objects=True)
+        self.object_dict, self.frame_dict = VideoInfDAO.get_video_objects(video_obj,adapted=False,remove_static_objects=True)
         self.video_obj=video_obj
         self.video_obj.obj_number=len(self.object_dict)
         self.video_obj.fps=self.video.get(cv2.CAP_PROP_FPS)
@@ -49,6 +45,8 @@ class Preprocessor:
         self.finish=False
         if chunk_size == None: chunk_size=4
         self.chunk_size=chunk_size
+
+        print("CHUNK SIZE:"+str(chunk_size))
 
         DataSchemeCreator.sprits_dirs_generator(f"{self.path_video}", self.object_dict)
         self.background = BackgroundGenerator3.Backgroundv3(self.frame_dict)
@@ -103,6 +101,16 @@ class Preprocessor:
             path_image=background_image.copy()
             path_image=__draw_path__(path_image,[(int(appearance.center_col),int(appearance.center_row)) for appearance in obj.appearances[::10]])
             VideoInfDAO.save_sprit(self.path_video,"path",obj.id,path_image)
+
+        #Arrange gt, maybe some points are outside the box
+        for obj_id in self.object_dict:
+            obj=self.object_dict.get(obj_id)
+            for appearance in obj.appearances:
+                row1,row2,col1,col2=Helper.get_points(self.video_obj.height,self.video_obj.width,appearance.row,appearance.row+appearance.h,appearance.col,appearance.col+appearance.w)
+                appearance.row=row1
+                appearance.col=col1
+                appearance.w=col2-col1
+                appearance.h=row2-row1
         VideoInfDAO.save_gt_adapted(self.video_obj,MOTParser.parseBack(self.new_frame_map, self.object_dict))
 
 
@@ -161,14 +169,7 @@ def __calculate_center__(appearance):
 
 def __set_object_angle_direction__(obj):
     angle=LinearRegressionHelper.get_direction_angle([Point.Point(appearance.center_col,appearance.center_row) for appearance in obj.appearances])
-    """if angle!=None:
-        img = np.zeros((512, 512, 3), np.uint8)
-        pendiente = math.tan(angle)
-        img=cv2.line(img,(256, 256), (512,int(256*pendiente+256)), (255, 255, 255), 2)
-        img=cv2.putText(img, "sp:"+str(obj.id), (30,30),
-                              cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255))
-        cv2.imshow("angle",img)
-        cv2.waitKey()"""
+
     obj.angle=angle
 
 def __draw_path__(path_image, points):

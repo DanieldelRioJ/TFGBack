@@ -1,19 +1,20 @@
 from flask import Blueprint,request,Response,jsonify,send_file
-import re
+
 import os
 from io_tools.data import VideoInfDAO
-from io_tools.annotations.ParserFactory import ParserFactory
+
 import datetime
 from objects.Video import Video
 from exceptions.VideoRepeated import VideoRepeated
 import time
-from utils.Constants import REPOSITORY_NAME,VIDEOS_DIR,SPRITES_DIR
-from video_generator import MovieScriptGenerator,VirtualVideoGenerator
+
+from virtual_generator import MovieScriptGenerator,VirtualVideoGenerator,HeatMapGenerator
 import threading
 import jsonpickle
+from helpers import Helper
 from preprocessor.Preprocessor import Preprocessor
-from video_generator.filter.Filter import Filter
-from video_generator.filter import FilterQuery
+
+from virtual_generator.filter import FilterQuery
 
 video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 
@@ -40,23 +41,6 @@ def delete_video(video_name):
         return "",204
     return video_name+" not found",404
 
-def get_chunk(full_path,byte1=None, byte2=None):
-    file_size = os.stat(full_path).st_size
-    start = 0
-    length = 102400
-
-    if byte1 < file_size:
-        start = byte1
-    if byte2:
-        length = byte2 + 1 - byte1
-    else:
-        length = file_size - start
-
-    with open(full_path, 'rb') as f:
-        f.seek(start)
-        chunk = f.read(length)
-    return chunk, start, length, file_size
-
 @video_controller.route('/<video_id>/media')
 def get_video_media(video_id:str):
 
@@ -66,18 +50,8 @@ def get_video_media(video_id:str):
         return f"{video_id} doesnt exist", 404
 
     range_header = request.headers.get('Range', None)
-    byte1, byte2 = 0, None
-    if range_header:
-        match = re.search(r'(\d+)-(\d*)', range_header)
-        groups = match.groups()
 
-        if groups[0]:
-            byte1 = int(groups[0])
-        if groups[1]:
-            byte2 = int(groups[1])
-
-    video_path,_,_=VideoInfDAO.get_paths(video_obj)
-    chunk, start, length, file_size = get_chunk(video_path,byte1, byte2)
+    chunk, start, length, file_size = VideoInfDAO.get_video_chunk(video_obj,range_header)
     resp = Response(chunk, 206, mimetype='video/mp4',
                     content_type='video/mp4', direct_passthrough=True)
     resp.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
@@ -91,7 +65,16 @@ def get_background(video_name:str):
     if video_obj is None:
         return f"Video {video_name} does not exists",404
 
-    return send_file(VideoInfDAO.get_background(video_obj),mimetype="image/jpg")
+    return send_file(VideoInfDAO.get_background_path(video_obj), mimetype="image/jpg")
+
+#Get part of virtual video
+@video_controller.route('/<video_name>/virtual/<virtual_id>/heatmap',methods=["GET"])
+def get_virtual_video_heatmap(video_name:str,virtual_id:str):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    return send_file(VideoInfDAO.get_virtual_video_heatmap_path(video_obj,virtual_id), mimetype="image/jpg")
 
 #Get objects of video
 @video_controller.route('/<video_name>/objects',methods=["GET"])
@@ -100,8 +83,7 @@ def get_objects(video_name:str):
     if video_obj is None:
         return f"Video {video_name} does not exists",404
 
-    path_gt = VideoInfDAO.get_gt_adapted_path(video_obj)
-    object_map, _ = ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
+    object_map, _ =VideoInfDAO.get_video_objects(video_obj,adapted=True)
     for obj_id in object_map:
         obj=object_map[obj_id]
         obj.appearances=None
@@ -114,13 +96,29 @@ def get_object(video_name:str,object_id:int):
     if video_obj is None:
         return f"Video {video_name} does not exists",404
 
-    path_gt = VideoInfDAO.get_gt_adapted_path(video_obj)
-    object_map, _ = ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
+    object_map, _ = VideoInfDAO.get_video_objects(video_obj,adapted=True)
     obj=object_map.get(int(object_id))
     if obj is None:
         return f"Object with id: '{object_id}' not found",404
     obj.appearances=None
     return jsonpickle.encode(obj, unpicklable=False)
+
+#Get video containing just the object
+@video_controller.route('/<video_name>/objects/<object_id>/video',methods=["GET"])
+def get_object_video(video_name:str,object_id:int):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+
+    range_header = request.headers.get('Range', None)
+
+    chunk, start, length, file_size = VideoInfDAO.get_object_video_chunk(video_obj,int(object_id),range_header)
+    resp = Response(chunk, 206, mimetype='video/mp4',
+                    content_type='video/mp4', direct_passthrough=True)
+    resp.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
+    return resp
+
+
 
 #Get portrait of object
 @video_controller.route('/<video_name>/objects/<object_id>/<frame_number>',methods=["GET"])
@@ -142,17 +140,22 @@ def create_virtual_video(video_name:str):
     if video_obj is None:
         return f"Video {video_name} does not exists",404
 
-    path_video, path_gt,_=VideoInfDAO.get_paths(video_obj)
-    path_gt=VideoInfDAO.get_gt_adapted_path(video_obj)
-    object_map,frame_map=ParserFactory.get_parser(path_gt).parse(remove_static_objects=False)
+    object_map,frame_map=VideoInfDAO.get_video_objects(video_obj,adapted=True)
 
     object_map=FilterQuery.do_filter(object_map,body,fps=video_obj.fps_adapted)
-    movie_script, script_lists=MovieScriptGenerator.generate_movie_script(object_map, video_obj)
+
+    heatmap = HeatMapGenerator.generateHeatMap(
+        [appearance for obj_id in object_map for appearance in object_map.get(obj_id).appearances],
+        VideoInfDAO.get_background_image(video_obj))
+
+    movie_script, script_lists=MovieScriptGenerator.generate_movie_script(object_map.copy(), video_obj)
+
     path_script = VideoInfDAO.get_script_path(video_obj, movie_script.id)
     os.makedirs(os.path.dirname(path_script))
 
     encoded=jsonpickle.encode(movie_script)
     VideoInfDAO.save_movie_script(video_obj,movie_script,script_lists)
+    VideoInfDAO.save_virtual_video_heatmap(video_obj,movie_script.id,heatmap)
     return Response(encoded,201,mimetype="application/json")
 
 #Get part of virtual video
@@ -172,7 +175,6 @@ def get_movie_script_part(video_name:str,virtual_id:str,movie_part:int):
 @video_controller.route('/<video_name>/virtual/<virtual_id>',methods=["GET"])
 def get_part_virtual_video(video_name:str,virtual_id:str):
     print("start")
-    start=None
     start=request.args.get('start')
     if start is None:
         start=0
@@ -189,8 +191,9 @@ def get_part_virtual_video(video_name:str,virtual_id:str):
     print("Video generated")
     return send_file(video_path,mimetype="video/mp4")
 
-def preprocess_video(video_obj,chunk_size=None):
+def preprocess_video(video_obj,video_filename,chunk_size=None):
     pre=Preprocessor(video_obj,chunk_size)
+    VideoInfDAO.create_converted_video(video_obj, video_filename)
     VideoInfDAO.modify_video(pre.video_obj)
     pre.close()
 
@@ -208,11 +211,10 @@ def upload_video():
     description = request.form.get("description")
 
     try:
-        video_name=video.filename+str(datetime.datetime.now()).replace(" ","_")
         video_obj=VideoInfDAO.add_video(Video(format(int(time.time() * 1000000),'x'),str(datetime.datetime.now()),
-                                              str(datetime.datetime.now()),title=title, city=city, description=description,processed=False),video,annotations)
+                                              str(datetime.datetime.now()),title=title, city=city, description=description,processed=False,original_filename=video.filename),video,annotations)
         x = threading.Thread(target=preprocess_video,
-                             args=(video_obj,None))
+                             args=(video_obj,video.filename,None))
         x.start()
 
         return video_obj.__dict__

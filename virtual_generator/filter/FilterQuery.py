@@ -1,4 +1,4 @@
-from  video_generator.filter import ColorFilter,PathFilter,TimeFilter,SpeedFilter,AreaFilter
+from  virtual_generator.filter import ColorFilter,PathFilter,TimeFilter,SpeedFilter,AreaFilter
 
 def do_filter(object_list,filter, fps=25,object_id=None):
 

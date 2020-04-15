@@ -4,7 +4,8 @@ from io_tools.data import VideoInfDAO
 from io_tools.video import VideoRecorder
 from utils.Constants import *
 from multiprocessing.pool import ThreadPool
-import os
+from matplotlib import pyplot
+import numpy as np
 import cv2
 import os
 import datetime
@@ -16,8 +17,8 @@ def parallelFunction(script_list, video_obj, background, i):
     img = background.copy()
     for appearance in frame_script.appearance_list:
         sprite = VideoInfDAO.get_sprit(video_obj, appearance.object.id, appearance.frame)
-        aux = img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]
         if appearance.overlapped:
+            aux = img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]
             sprite = cv2.addWeighted(sprite, 0.5, aux, 0.5, 0.0)
             # sprite=cv2.scaleAdd(sprite,0.5,aux)
         img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w] = sprite
@@ -40,6 +41,46 @@ def parallelFunction(script_list, video_obj, background, i):
                           (appearance.center_col-20, appearance.center_row),
                           cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255))
     return img
+
+def parallelFunction2(script_list, video_obj, background, i):
+    # remember, movie_script frame 1 is in position 0
+    frame_script = script_list[i]
+
+    img = background.copy()
+    for appearance in frame_script.appearance_list:
+        sprite = VideoInfDAO.get_sprit(video_obj, appearance.object.id, appearance.frame)
+        if appearance.overlapped:
+            mask=np.zeros((appearance.h,appearance.w,3),dtype=np.uint8)
+            for intersection in appearance.overlapped_coordinates:
+                x1,y1=int(intersection[0][0]-appearance.col),int(intersection[0][1]-appearance.row)
+                x2,y2=int(intersection[1][0]-appearance.col),int(intersection[1][1]-appearance.row)
+                mask=cv2.rectangle(mask,(x1,y1),(x2,y2),(128,128,128),-1)
+
+
+            mask=cv2.GaussianBlur(mask,(5,5),3)
+            #cv2.imshow("mask", mask)
+            mask=mask/255
+            img_background_chunk=img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]
+            left=(img_background_chunk*mask).astype('uint8')
+            right=(sprite*(1-mask)).astype('uint8')
+            dest=left+right
+            """cv2.imshow("left",left)
+            cv2.imshow("right",right)
+            cv2.imshow("result",dest)
+            cv2.waitKey()"""
+            img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]=dest
+        else:
+            img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]=sprite
+
+        img = cv2.putText(img,
+                          str(appearance.object.id),
+                          (appearance.center_col, appearance.center_row-20),
+                          cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255))
+        img = cv2.putText(img, str(datetime.timedelta(seconds=appearance.frame / video_obj.fps_adapted)).split(".")[0],
+                          (appearance.center_col-20, appearance.center_row),
+                          cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255))
+    return img
+
 
 #start and end in seconds
 def generate_virtual_video(video_obj,movie_script,start=0,duration=10, units="seconds"):
@@ -64,6 +105,6 @@ def generate_virtual_video(video_obj,movie_script,start=0,duration=10, units="se
     end=min(lenght,duration)
     imgs=[]
 
-    pool=ThreadPool(processes=os.cpu_count()//2)
-    imgs=pool.map(functools.partial(parallelFunction,script_list, video_obj, background), range(0,end))
+    pool=ThreadPool(processes=1)#os.cpu_count()//2)
+    imgs=pool.map(functools.partial(parallelFunction2,script_list, video_obj, background), range(0,end))
     return VideoRecorder.save_frames_as_video_ffmpeg(video_obj,imgs,movie_script.id,start)

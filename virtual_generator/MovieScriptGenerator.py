@@ -1,5 +1,6 @@
 from helpers import Helper
 from objects.Point import Point
+from shapely.geometry import Polygon
 import time
 import itertools
 #It generates a list of frames containing the appearences of the objects suplied in the object_list.
@@ -59,14 +60,25 @@ def __generate_movie_script__(object_list):
                 if first_frame_aux > len(frame_list): #Extend list
                     frame_list.append(MovieScriptFrame(first_frame_aux,[]))
 
+                #Will store coordinates of polygons wich represent the intersectio between this appearance
+                #and another appearances
+                appearance.overlapped_coordinates=[]
                 for appearance2 in frame_list[first_frame_aux-1].appearance_list: #Check if overlap, for make it transparent
-                    if Helper.do_overlap(Point(appearance2.col,appearance2.row),
+                    if obj.first_appearance!=appearance2.object.first_appearance and Helper.do_overlap(Point(appearance2.col,appearance2.row),
                                      Point(appearance2.col+appearance2.w, appearance2.row+appearance2.h),
                                      Point(appearance.col,appearance.row),
                                      Point(appearance.col+appearance.w,appearance.row+appearance.h)):
                         appearance.overlapped=True
-                        #appearance2.overlapped=True
-                        break
+                        polygon_a=Helper.get_polygon_by_appearance(appearance)
+                        polygon_b=Helper.get_polygon_by_appearance(appearance2)
+
+                        polygon_intersection=polygon_a.intersection(polygon_b)
+
+                        #If the intersection is a line
+                        if polygon_intersection.area==0:
+                            continue
+                        coordinates=[(polygon_intersection.bounds[0],polygon_intersection.bounds[1]),(polygon_intersection.bounds[2],polygon_intersection.bounds[3])]
+                        appearance.overlapped_coordinates.append(coordinates)
 
                 frame_list[first_frame_aux-1].appearance_list.append(appearance)
                 first_frame_aux+=1
