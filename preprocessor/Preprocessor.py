@@ -95,9 +95,7 @@ class Preprocessor:
                 appearance.speed=Helper.distance(appearance.center_col,appearance.center_row,last_appearance.center_col,last_appearance.center_row)
                 speed+=appearance.speed #used in calculation of average speed
                 last_appearance=appearance
-            speed/=len(appearances)
-            obj.average_speed=speed
-            __set_object_angle_direction__(obj)
+            __set_object_angle_direction_and_speed__(obj)
             path_image=background_image.copy()
             path_image=__draw_path__(path_image,[(int(appearance.center_col),int(appearance.center_row)) for appearance in obj.appearances[::10]])
             VideoInfDAO.save_sprit(self.path_video,"path",obj.id,path_image)
@@ -167,10 +165,14 @@ class Preprocessor:
 def __calculate_center__(appearance):
     return (appearance.col * 2 + appearance.w) / 2, (appearance.row * 2 + appearance.h) / 2
 
-def __set_object_angle_direction__(obj):
-    angle=LinearRegressionHelper.get_direction_angle([Point.Point(appearance.center_col,appearance.center_row) for appearance in obj.appearances])
+def __set_object_angle_direction_and_speed__(obj):
+    if obj.id==98:
+        print('')
+    angle,distance=LinearRegressionHelper.get_direction_angle([Point.Point(appearance.center_col,appearance.center_row) for appearance in obj.appearances])
 
     obj.angle=angle
+    if distance is not None:
+        obj.average_speed=distance/len(obj.appearances)
 
 def __draw_path__(path_image, points):
     last_point=points[0]

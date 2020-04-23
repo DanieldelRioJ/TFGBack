@@ -1,4 +1,4 @@
-from  virtual_generator.filter import ColorFilter,PathFilter,TimeFilter,SpeedFilter,AreaFilter
+from  virtual_generator.filter import ColorFilter,PathFilter,TimeFilter,SpeedFilter,AreaFilter,DirectionSpeedFilter
 
 def do_filter(object_list,filter, fps=25,object_id=None):
 
@@ -8,6 +8,7 @@ def do_filter(object_list,filter, fps=25,object_id=None):
     #Try to order them by speed
     object_list=TimeFilter.do_filter(object_list,filter['time'],fps)
     object_list = SpeedFilter.do_filter(object_list, filter['velocity'],fps)
+    object_list=DirectionSpeedFilter.do_filter(object_list,filter['direction'],filter['speed'])
     object_list=PathFilter.do_filter(object_list,filter['location'])
     object_list=AreaFilter.do_filter(object_list,filter['area'])
     print("Objects Filtered:"+str(len(object_list)))

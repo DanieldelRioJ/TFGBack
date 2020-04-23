@@ -122,7 +122,8 @@ class MOTParser():
             attr=line.replace('\n','').split(",")
             id=int(attr[0])
             objects[id].portrait = attr[1]
-            objects[id].average_speed=float(attr[2])
+            if attr[2]!='None':
+                objects[id].average_speed=float(attr[2])
             objects[id].first_appearance=objects[id].appearances[0].frame
             objects[id].last_appearance = objects[id].appearances[-1].frame
             if attr[3]!="None":
