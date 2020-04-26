@@ -16,7 +16,7 @@ def parallelFunction(script_list, video_obj, background, i):
 
     img = background.copy()
     for appearance in frame_script.appearance_list:
-        sprite = VideoInfDAO.get_sprit(video_obj, appearance.object.id, appearance.frame)
+        sprite = VideoInfDAO.get_sprite(video_obj, appearance.object.id, appearance.frame)
         if appearance.overlapped:
             aux = img[appearance.row:appearance.row + appearance.h, appearance.col:appearance.col + appearance.w]
             sprite = cv2.addWeighted(sprite, 0.5, aux, 0.5, 0.0)
@@ -48,7 +48,7 @@ def parallelFunction2(script_list, video_obj, background, i):
 
     img = background.copy()
     for appearance in frame_script.appearance_list:
-        sprite = VideoInfDAO.get_sprit(video_obj, appearance.object.id, appearance.frame)
+        sprite = VideoInfDAO.get_sprite(video_obj, appearance.object.id, appearance.frame)
         if appearance.overlapped:
             mask=np.zeros((appearance.h,appearance.w,3),dtype=np.uint8)
             for intersection in appearance.overlapped_coordinates:
@@ -95,7 +95,7 @@ def generate_virtual_video(video_obj,movie_script,start=0,duration=10, units="se
     if os.path.isfile(f"{video_path}/virtual/{movie_script.id}/{start}.mp4"):
         return f"{video_path}/virtual/{movie_script.id}/{start}.mp4"
 
-    _,_,background_path=VideoInfDAO.get_paths(video_obj)
+    background_path=VideoInfDAO.get_background_path(video_obj)
 
     background=cv2.imread(background_path)
 
@@ -107,4 +107,4 @@ def generate_virtual_video(video_obj,movie_script,start=0,duration=10, units="se
 
     pool=ThreadPool(processes=1)#os.cpu_count()//2)
     imgs=pool.map(functools.partial(parallelFunction2,script_list, video_obj, background), range(0,end))
-    return VideoRecorder.save_frames_as_video_ffmpeg(video_obj,imgs,movie_script.id,start)
+    return VideoRecorder.save_frames_as_video_ffmpeg(video_obj,VideoInfDAO.get_virtual_video_part_path(video_obj,movie_script.id,start),imgs)

@@ -74,6 +74,8 @@ class MOTParser():
         map = {}
         objects = {}
         i=0
+
+        #For each line of appearance
         for line in lines:
             if line[0] == "#":  # Comentario
                 continue
@@ -87,6 +89,7 @@ class MOTParser():
             if objects.get(id) == None:
                 objects[id] = Person(id, [])
 
+            # dif col and dif row is used to reduce the length(w and h) that we add correcting negative coordinates(col and row of upper left corner)
             col = int(float(attr[2]))
             dif_col = 0
             row = int(float(attr[3]))
@@ -103,7 +106,8 @@ class MOTParser():
                 speed=None
             else:
                 speed=float(speed)
-            # dif col and dif row is used to reduce the length(w and h) that we add correcting negative coordinates(col and row of upper left corner)
+
+
             appearance = Appearance(objects[id], frame, col,
                                     row,
                                     int(float(attr[4])) + dif_col,
@@ -113,9 +117,17 @@ class MOTParser():
                                     int(float(attr[10])),
                                     speed
                                     )
+
+            real_coord_x = attr[12]
+            real_coord_y = attr[13]
+            if real_coord_x is not None and real_coord_y is not None:
+                appearance.real_coordinates=(real_coord_x,real_coord_y)
+
             objects[id].appearances.append(appearance)
             map.get(frame).append(appearance)
             i+=1
+
+        #For each line of object
         for line in lines[i+2:]:
             if line[0] == "#":  # Comentario
                 continue
@@ -141,13 +153,14 @@ class MOTParser():
                 objects, map = self.__advanced_parser__(lines)
         return objects, map
 
-def parseBack(frame_map, object_dict):
+def parse_back(frame_map, object_dict):
     str=[]
-    str.append("#{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed}\n")
+    str.append("#{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed},{appearance.real_coordinates[0]},{appearance.real_coordinates[1]}\n")
     for frame_number in frame_map:
         frame_appearances=frame_map.get(frame_number)
         for appearance in frame_appearances:
-            str.append(f"{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed}\n")
+            (real_c_x,real_c_y)=appearance.real_coordinates if appearance.real_coordinates is not None else (None,None)
+            str.append(f"{frame_number},{appearance.object.id},{appearance.col},{appearance.row},{appearance.w},{appearance.h},{appearance.confidence},1,1,{appearance.center_col},{appearance.center_row},{appearance.speed},{real_c_x},{real_c_y}\n")
 
     str.append(":\n")
     str.append("#{object.id},{object.portrait},{object.average_speed},{object.direction}\n")

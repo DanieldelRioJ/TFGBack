@@ -1,9 +1,99 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+import math
 
 import time
 
+def order_points(pts):
+	# initialzie a list of coordinates that will be ordered
+	# such that the first entry in the list is the top-left,
+	# the second entry is the top-right, the third is the
+	# bottom-right, and the fourth is the bottom-left
+	rect = np.zeros((4, 2), dtype = "float32")
+	# the top-left point will have the smallest sum, whereas
+	# the bottom-right point will have the largest sum
+	s = pts.sum(axis = 1)
+	rect[0] = pts[np.argmin(s)]
+	rect[2] = pts[np.argmax(s)]
+	# now, compute the difference between the points, the
+	# top-right point will have the smallest difference,
+	# whereas the bottom-left will have the largest difference
+	diff = np.diff(pts, axis = 1)
+	rect[1] = pts[np.argmin(diff)]
+	rect[3] = pts[np.argmax(diff)]
+	# return the ordered coordinates
+	return rect
+
+
+def getRealWorldPoint(M,point):
+    point=np.array([point[0],point[1],1]).reshape(3,1)
+    point=np.matmul(M,point)
+    return np.array([point[0]/point[2],point[1]/point[2]])
+
+def bounding_box(points):
+    x_coordinates, y_coordinates = zip(*points)
+
+    return [(min(x_coordinates), min(y_coordinates)), (max(x_coordinates), max(y_coordinates))]
+
+def prueba():
+    pts1 = []
+    circles=[]
+
+    img = cv2.imread('img2.jpeg')
+    originalImage=img.copy()
+
+    def funcCallBack(event, x, y, flags, params):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            print("new click")
+            pts1.append((x, y))
+        elif event==cv2.EVENT_RBUTTONDOWN:
+            print("right")
+            circles.append((x, y))
+
+    cv2.namedWindow('img', cv2.WINDOW_KEEPRATIO)
+    cv2.setMouseCallback("img", funcCallBack)
+    cv2.resizeWindow('img', 600, 400)
+    cv2.imshow("img", img)
+    cv2.waitKey()
+
+    for circle in circles:
+        img=cv2.circle(img,(circle[0],circle[1]),15,(255,0,0),-1)
+
+    pts1=np.array(pts1,dtype = "float32")
+
+    ratio = 1.6
+    cardH = int(math.sqrt(
+        (pts1[2][0] - pts1[1][0]) * (pts1[2][0] - pts1[1][0]) + (pts1[2][1] - pts1[1][1]) * (pts1[2][1] - pts1[1][1])))
+    cardW =int( ratio * cardH);
+    """pts2 = np.float32(
+        [[pts1[0][0], pts1[0][1]], [pts1[0][0] + cardW, pts1[0][1]], [pts1[0][0] + cardW, pts1[0][1] + cardH],
+         [pts1[0][0], pts1[0][1] + cardH]])"""
+    pts2=np.array([
+		[0, 0],
+		[cardW - 1, 0],
+		[cardW - 1, cardH - 1],
+		[0, cardH - 1]], dtype = "float32")
+
+    M = cv2.getPerspectiveTransform(pts1, pts2)
+
+    ptIS=getRealWorldPoint(M,[0,0])
+
+    deformated=originalImage.copy()
+    dst = cv2.warpPerspective(deformated, M, (cardW, cardH))
+
+    for circle in circles:
+        rw=getRealWorldPoint(M,circle)
+        dst=cv2.circle(dst,(rw[0],rw[1]),15,(255,0,0),-1)
+
+
+    plt.subplot(121), plt.imshow(img), plt.title('Input')
+    plt.subplot(122), plt.imshow(dst), plt.title('Output')
+    plt.show()
+
+
+
+"""
 def function(row):
     row=row.reshape(1,len(row))
     hist = cv2.calcHist(row, [0], None, [16], [0, 16])
@@ -14,7 +104,8 @@ def function(row):
     if second_max_quantity*2<max_quantity: #If the difference is big, consider it, else, return -1
         return np.uint8(max_color)
     return np.uint8(255)
-
+"""
+"""
 def prueba():
     start = time.time()
 
@@ -46,3 +137,4 @@ def prueba():
     mask=cv2.resize(mask,(original_shape[1],original_shape[0]))
 
     return result,mask
+    """

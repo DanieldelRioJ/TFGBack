@@ -2,6 +2,7 @@ import functools
 
 import cv2
 import subprocess
+import pathlib
 import os
 import shutil
 from utils.Constants import *
@@ -21,9 +22,9 @@ def __save_frame__(temporal_dir_name, img,index):
     name = temporal_dir_name + "/{index:06}.jpg".format(index=index)
     cv2.imwrite(name, img)
 
-def save_frames_as_video_ffmpeg(video_obj,imgs,movie_script_id,start):
+def save_frames_as_video_ffmpeg(video_obj,file_path,imgs):
     temporal_id=format(int(time.time() * 1000000),'x')
-    video_path=f"{REPOSITORY_NAME}/{VIDEOS_DIR}/{video_obj.id}"
+    video_path=pathlib.Path(file_path).parent
     temporal_dir_name=f"{video_path}/temporal/{temporal_id}"
     os.makedirs(temporal_dir_name)
     pool=ThreadPool(processes=os.cpu_count()//2)
@@ -35,13 +36,13 @@ def save_frames_as_video_ffmpeg(video_obj,imgs,movie_script_id,start):
     command = f"ffmpeg -y -r {video_obj.fps_adapted} -i {temporal_dir_name}/%06d.jpg -profile:v main -g -1 \
             -preset ultrafast -c:v libx264 \
             -f mp4 -flags +cgop+low_delay -movflags empty_moov+omit_tfhd_offset+frag_keyframe+default_base_moof+isml \
-            {video_path}/virtual/{movie_script_id}/{start}.mp4"
+            {file_path}"
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
     process.wait()
     shutil.rmtree(temporal_dir_name, ignore_errors=True)
 
-    return f"{video_path}/virtual/{movie_script_id}/{start}.mp4"
+    return file_path
 
 def generate_individual_video(video_obj,video_obj_opencv,obj):
     temporal_id = format(int(time.time() * 1000000), 'x')

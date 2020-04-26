@@ -20,7 +20,7 @@ def setup():
         video.write("[]")
 
 #setup the scheme of directories for a specific sprites of a video
-def sprits_dirs_generator(video_path,obj_list):
-    sprits_dir = video_path+ SPRITES_DIR + os.path.sep
+def sprites_dirs_generator(video_path, obj_list):
+    sprites_dir = os.path.join(video_path, SPRITES_DIR)
     for obj in obj_list:
-        os.makedirs(sprits_dir+str(obj))
+        os.makedirs(os.path.join(sprites_dir,str(obj)))

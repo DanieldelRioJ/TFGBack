@@ -10,10 +10,7 @@ from objects import Point
 
 class Preprocessor:
     def __init__(self,video_obj,chunk_size=None):
-
-        self.path_video = f"{REPOSITORY_NAME}/videos/{video_obj.id}/"
-
-        self.video=cv2.VideoCapture(f"{self.path_video}{video_obj.original_filename}")
+        self.video=cv2.VideoCapture(VideoInfDAO.get_original_video_path(video_obj))
         if not self.video.isOpened():
             raise FileNotFoundError
 
@@ -48,7 +45,7 @@ class Preprocessor:
 
         print("CHUNK SIZE:"+str(chunk_size))
 
-        DataSchemeCreator.sprits_dirs_generator(f"{self.path_video}", self.object_dict)
+        DataSchemeCreator.sprites_dirs_generator(VideoInfDAO.get_video_base_dir(video_obj), self.object_dict)
         self.background = BackgroundGenerator3.Backgroundv3(self.frame_dict)
 
         first_real_frame=1
@@ -98,7 +95,7 @@ class Preprocessor:
             __set_object_angle_direction_and_speed__(obj)
             path_image=background_image.copy()
             path_image=__draw_path__(path_image,[(int(appearance.center_col),int(appearance.center_row)) for appearance in obj.appearances[::10]])
-            VideoInfDAO.save_sprit(self.path_video,"path",obj.id,path_image)
+            VideoInfDAO.save_sprite(video_obj, "path", obj.id, path_image)
 
         #Arrange gt, maybe some points are outside the box
         for obj_id in self.object_dict:
@@ -109,7 +106,7 @@ class Preprocessor:
                 appearance.col=col1
                 appearance.w=col2-col1
                 appearance.h=row2-row1
-        VideoInfDAO.save_gt_adapted(self.video_obj,MOTParser.parseBack(self.new_frame_map, self.object_dict))
+        VideoInfDAO.save_gt_adapted(self.video_obj, MOTParser.parse_back(self.new_frame_map, self.object_dict))
 
 
         print("Finished!")
@@ -127,8 +124,8 @@ class Preprocessor:
                 for appearance in self.frame_dict.get(frame_number):
                     cutout = img[appearance.row:appearance.row + appearance.h,
                              appearance.col:appearance.col + appearance.w]
-                    threading.Thread(target=VideoInfDAO.save_sprit, args=(
-                    self.path_video, frame_number - self.eliminated_frame_number, appearance.object.id,
+                    threading.Thread(target=VideoInfDAO.save_sprite, args=(
+                    self.video_obj, frame_number - self.eliminated_frame_number, appearance.object.id,
                     cutout)).start()
                     # Update frame number (remember the eliminations)
                     appearance.frame = appearance.frame - self.eliminated_frame_number

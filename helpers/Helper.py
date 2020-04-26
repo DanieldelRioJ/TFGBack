@@ -37,7 +37,7 @@ def do_overlap(upper_left1, lower_right1, upper_left2, lower_right2):
 
     return True
 
-def pixel_inside(col,row, upper_left,lower_right):
+def is_pixel_inside(col, row, upper_left, lower_right):
     if col<upper_left.x or col > lower_right.x:
         return False
     elif row<upper_left.y or row > lower_right.y:

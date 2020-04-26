@@ -13,3 +13,4 @@ class Appearance(object):
         self.center_row=center_row
         self.speed=speed
         self.direction=direction
+        self.real_coordinates=None
