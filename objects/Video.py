@@ -10,6 +10,10 @@ class Video(object):
         self.city=city
         self.description=description
         self.original_filename=original_filename
+        self.perspective=None
 
-    def set_perspective(self,points):
-        self.perspective={"points":points,'limits':{None}}
+class Perspective(object):
+    def __init__(self,upper_left_limit,lower_right_limit,original_points):
+        self.upper_left_limit=upper_left_limit
+        self.lower_right_limit=lower_right_limit
+        self.original_points=original_points

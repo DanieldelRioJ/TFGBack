@@ -120,8 +120,8 @@ class MOTParser():
 
             real_coord_x = attr[12]
             real_coord_y = attr[13]
-            if real_coord_x is not None and real_coord_y is not None:
-                appearance.real_coordinates=(real_coord_x,real_coord_y)
+            if real_coord_x is not None and real_coord_y is not None and real_coord_x != "None" and real_coord_y!="None":
+                appearance.real_coordinates=(int(real_coord_x),int(real_coord_y))
 
             objects[id].appearances.append(appearance)
             map.get(frame).append(appearance)

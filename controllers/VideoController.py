@@ -1,17 +1,21 @@
+from _json import make_encoder
+
 from flask import Blueprint,request,Response,jsonify,send_file
 
 import os
+
+from io_tools.annotations import MOTParser
 from io_tools.data import VideoInfDAO
 
 import datetime
-from objects.Video import Video
+from objects.Video import Video,Perspective
 from exceptions.VideoRepeated import VideoRepeated
 import time
 
 from virtual_generator import MovieScriptGenerator,VirtualVideoGenerator,HeatMapGenerator
 import threading
 import jsonpickle
-from helpers import Helper
+from helpers import Helper,PerspectiveHelper
 from preprocessor.Preprocessor import Preprocessor
 
 from virtual_generator.filter import FilterQuery
@@ -22,7 +26,9 @@ video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 ############# VIDEO DATA ENDPOINTS ###############
 @video_controller.route("/",methods=["GET"])
 def get_videos():
-    return Response(jsonpickle.encode(VideoInfDAO.get_videos()), 200, mimetype="application/json")
+    video=VideoInfDAO.get_videos()
+    response=jsonpickle.encode(video,unpicklable=False)
+    return Response(response, 200, mimetype="application/json")
 
 @video_controller.route("",methods=["DELETE"])
 def delete_videos():
@@ -35,7 +41,7 @@ def preprocess_video(video_obj,video_filename,chunk_size=None):
     VideoInfDAO.modify_video(pre.video_obj)
     pre.close()
 
-@video_controller.route("",methods=["PUT"])
+@video_controller.route("",methods=["POST"])
 def upload_video():
     if 'video' not in request.files:
         print('No file part')
@@ -63,10 +69,10 @@ def update_video(video_name):
     video_obj = VideoInfDAO.get_video(video_name)
     if video_obj is None:
         return f"{video_name} not found", 404
-    ej=jsonpickle.encode(video_obj)
+
     obj_modified=request.json
     obj_modified['py/object']="objects.Video.Video"
-    obj_modified=str(obj_modified).replace("'",'"').replace("True","true").replace("False","false")
+    obj_modified=str(obj_modified).replace("'",'"').replace("True","true").replace("False","false").replace("None","null")
     obj_modified=jsonpickle.decode(obj_modified)
     return jsonpickle.encode(VideoInfDAO.modify_video(obj_modified),unpicklable=True)
 
@@ -76,7 +82,7 @@ def get_video(video_name):
     video_obj=VideoInfDAO.get_video(video_name)
     if video_obj is None:
         return f"{video_name} not found",404
-    return Response(jsonpickle.encode(video_obj),200,mimetype="application/json")
+    return Response(jsonpickle.encode(video_obj,unpicklable=False),200,mimetype="application/json")
 
 
 
@@ -106,6 +112,18 @@ def get_video_media(video_id:str):
     resp.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return resp
 
+#################### GET FRAME MAP #########################
+@video_controller.route('/<video_name>/frame_map',methods=["GET"])
+def get_frame_map(video_name:str):
+    video_obj=VideoInfDAO.get_video(video_name)
+    if video_obj is None:
+        return f"Video {video_name} does not exists",404
+    _, frame_map =VideoInfDAO.get_video_objects(video_obj,adapted=True)
+    for k, appearances in frame_map.items():
+        for appearance in appearances:
+            appearance.object=appearance.object.id
+    return jsonpickle.encode(frame_map,unpicklable=False)
+
 #################### VIDEO BACKGROUND ######################
 @video_controller.route('/<video_name>/background',methods=["GET"])
 def get_background(video_name:str):
@@ -115,7 +133,7 @@ def get_background(video_name:str):
 
     return send_file(VideoInfDAO.get_background_path(video_obj), mimetype="image/jpg")
 
-#Get objects of video
+########### Get objects of video #################
 @video_controller.route('/<video_name>/objects',methods=["GET"])
 def get_objects(video_name:str):
     video_obj=VideoInfDAO.get_video(video_name)
@@ -251,8 +269,13 @@ def add_perspective_points(video_name:str):
         return f"Video {video_name} does not exists",404
 
     object_map,frame_map=VideoInfDAO.get_video_objects(video_obj,adapted=True)
-    print("perspective")
 
+    points=[(point['x'],point['y']) for point in points]
+    object_map,upper_left_limit,lower_left_limit=PerspectiveHelper.add_real_coordinates(points,object_map)
+
+    video_obj.perspective=Perspective(upper_left_limit,lower_left_limit,points)
+    video=VideoInfDAO.modify_video(video_obj)
+    VideoInfDAO.save_gt_adapted(video_obj, MOTParser.parse_back(frame_map, object_map))
     return Response('',200,mimetype="application/json")
 
 
