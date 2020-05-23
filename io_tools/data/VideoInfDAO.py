@@ -123,7 +123,7 @@ def __write_video__(video_dir,video_filename,fps_output):
 
 
 def save_sprite(video_obj, frame_number, object_id, img):
-    cv2.imwrite(get_sprite_path(video_obj,object_id,frame_number),img,[cv2.IMWRITE_JPEG_QUALITY, 30])
+    cv2.imwrite(get_sprite_path(video_obj,object_id,frame_number),img)
 
 def get_sprite(video_obj, object_id, frame_number):
     return cv2.imread(get_sprite_path(video_obj,object_id,frame_number))

@@ -123,3 +123,9 @@ def get_chunk(full_path,range_header):
 def get_polygon_by_appearance(apperance):
     return Polygon([(apperance.col,apperance.row),(apperance.col+apperance.w,apperance.row),
                    (apperance.col+apperance.w,apperance.row+apperance.h),(apperance.col,apperance.row+apperance.h)])
+
+def color_distance(colorA,colorB):
+    rest=[(cA-cB)**2 for cA,cB in set(zip(colorA,colorB))]
+    add=sum(rest)
+    distance=math.sqrt(add)
+    return distance

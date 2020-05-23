@@ -12,7 +12,7 @@ from objects.Video import Video,Perspective
 from exceptions.VideoRepeated import VideoRepeated
 import time
 
-from virtual_generator import MovieScriptGenerator,VirtualVideoGenerator,HeatMapGenerator
+from virtual_generator import MovieScriptGenerator,MovieScriptGenerator2,VirtualVideoGenerator,HeatMapGenerator
 import threading
 import jsonpickle
 from helpers import Helper,PerspectiveHelper
@@ -20,8 +20,9 @@ from preprocessor.Preprocessor import Preprocessor
 
 from virtual_generator.filter import FilterQuery
 
-video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 
+
+video_controller = Blueprint('video_controller', __name__,url_prefix="/videos")
 
 ############# VIDEO DATA ENDPOINTS ###############
 @video_controller.route("/",methods=["GET"])
@@ -43,6 +44,7 @@ def preprocess_video(video_obj,video_filename,chunk_size=None):
 
 @video_controller.route("",methods=["POST"])
 def upload_video():
+    req=request
     if 'video' not in request.files:
         print('No file part')
         return "No file part",400
@@ -52,10 +54,11 @@ def upload_video():
     title=request.form.get("title")
     city = request.form.get("city")
     description = request.form.get("description")
+    recorded_date=request.form.get("recorded_date")
 
     try:
         video_obj=VideoInfDAO.add_video(Video(format(int(time.time() * 1000000),'x'),str(datetime.datetime.now()),
-                                              str(datetime.datetime.now()),title=title, city=city, description=description,processed=False,original_filename=video.filename),video,annotations)
+                                              recorded_date,title=title, city=city, description=description,processed=False,original_filename=video.filename),video,annotations)
         x = threading.Thread(target=preprocess_video,
                              args=(video_obj,video.filename,None))
         x.start()
@@ -192,6 +195,8 @@ def get_object_sprite(video_name:str, object_id:int, frame_number:int):
 #Create virtual video
 @video_controller.route('/<video_name>/virtual',methods=["POST"])
 def create_virtual_video(video_name:str):
+    from controllers.websockets import ProgressSocket
+
     body=request.json;
     video_obj=VideoInfDAO.get_video(video_name)
     if video_obj is None:
@@ -199,13 +204,28 @@ def create_virtual_video(video_name:str):
 
     object_map,frame_map=VideoInfDAO.get_video_objects(video_obj,adapted=True)
 
-    object_map=FilterQuery.do_filter(object_map,body,fps=video_obj.fps_adapted)
 
+    #Notify progress
+    ProgressSocket.notify_progress(body['id'],0,'filtering')
+
+    pixels_per_meter=video_obj.perspective.one_meter if video_obj.perspective is not None else None
+    object_map,group_by_social_distance=FilterQuery.do_filter(object_map,frame_map,body,pixels_per_meter,fps=video_obj.fps_adapted)
+
+    ProgressSocket.notify_progress(body['id'], 30, 'heatmap')
     heatmap = HeatMapGenerator.generateHeatMap(
         [appearance for obj_id in object_map for appearance in object_map.get(obj_id).appearances],
         VideoInfDAO.get_background_image(video_obj))
 
-    movie_script, script_lists=MovieScriptGenerator.generate_movie_script(object_map.copy(), video_obj)
+    # Notify progress
+    ProgressSocket.notify_progress(body['id'], 50, 'movie script')
+
+    if group_by_social_distance is None:
+        movie_script, script_lists = MovieScriptGenerator.generate_movie_script(object_map.copy(), video_obj)
+    else:
+        movie_script, script_lists=MovieScriptGenerator2.generate_movie_script(object_map.copy(),group_by_social_distance, video_obj)
+
+    # Notify progress
+    ProgressSocket.notify_progress(body['id'], 70, 'saving movie script')
 
     path_script = VideoInfDAO.get_script_path(video_obj, movie_script.id)
     os.makedirs(os.path.dirname(path_script))
@@ -213,6 +233,8 @@ def create_virtual_video(video_name:str):
     encoded=jsonpickle.encode(movie_script)
     VideoInfDAO.save_movie_script(video_obj,movie_script,script_lists)
     VideoInfDAO.save_virtual_video_heatmap(video_obj,movie_script.id,heatmap)
+    # Notify progress
+    ProgressSocket.notify_progress(body['id'], 100, 'Downloading')
     return Response(encoded,201,mimetype="application/json")
 
 ############################ VIDEO HEATMAP###################
@@ -271,9 +293,9 @@ def add_perspective_points(video_name:str):
     object_map,frame_map=VideoInfDAO.get_video_objects(video_obj,adapted=True)
 
     points=[(point['x'],point['y']) for point in points]
-    object_map,upper_left_limit,lower_left_limit=PerspectiveHelper.add_real_coordinates(points,object_map)
+    object_map,upper_left_limit,lower_left_limit, one_meter=PerspectiveHelper.add_real_coordinates(points,object_map)
 
-    video_obj.perspective=Perspective(upper_left_limit,lower_left_limit,points)
+    video_obj.perspective=Perspective(upper_left_limit,lower_left_limit,points, one_meter)
     video=VideoInfDAO.modify_video(video_obj)
     VideoInfDAO.save_gt_adapted(video_obj, MOTParser.parse_back(frame_map, object_map))
     return Response('',200,mimetype="application/json")

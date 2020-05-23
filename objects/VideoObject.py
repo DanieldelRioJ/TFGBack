@@ -1,11 +1,12 @@
 from random import randint
 from objects.Appearance import Appearance
 
-class Person(object):
+class VideoObject(object):
     def __init__(self,
                  id:int,
                  appearances,
                  color=None):
+        self.group = None
         if appearances is None:
             appearances = []
         self.id=id
@@ -17,3 +18,5 @@ class Person(object):
         self.portrait=None
         self.average_speed=None
         self.angle=None
+        self.upper_colors=None
+        self.lower_colors=None

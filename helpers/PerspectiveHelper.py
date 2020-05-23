@@ -1,36 +1,41 @@
 import numpy as np
+import math
 import cv2
+from helpers import Helper
+from utils.Constants import PERSON_WIDTH
 import matplotlib.pyplot as plt
 
 def order_points(pts):
-    # initialzie a list of coordinates that will be ordered
-    # such that the first entry in the list is the top-left,
-    # the second entry is the top-right, the third is the
-    # bottom-right, and the fourth is the bottom-left
-    rect = np.zeros((4, 2), dtype="float32")
-    # the top-left point will have the smallest sum, whereas
-    # the bottom-right point will have the largest sum
-    s = pts.sum(axis=1)
+    max_dimensions=pts.max(axis=0)
+    distances=np.zeros(4)
+    limits=np.array([[0,0],[max_dimensions[0],0],max_dimensions,[0,max_dimensions[1]]])
+    for i in range(4):
+        for j in range(4):
+            pos_distance_array=(i+j)%4
+            distance=Helper.distance(*pts[i],*limits[pos_distance_array])
+            distances[j]+=distance
+    min_arg=distances.argmin()
 
-    rect[0] = pts[np.argmin(s)]
-    rect[2] = pts[np.argmax(s)]
-    # now, compute the difference between the points, the
-    # top-right point will have the smallest difference,
-    # whereas the bottom-left will have the largest difference
-    diff = np.diff(pts, axis=1)
-    rect[1] = pts[np.argmin(diff)]
-    rect[3] = pts[np.argmax(diff)]
-    # return the ordered coordinates
-    return rect
+    ordered_array=np.zeros((4,2),dtype="float32")
+    for i in range(0,4):
+        new_position=(i+min_arg)%4
+        ordered_array[new_position]=pts[i]
+    return ordered_array
 
-def getRealWorldPoint(M,point):
-    point=np.array([point[0],point[1],1]).reshape(3,1)
-    point=np.matmul(M,point)
-    return np.array([point[0]/point[2],point[1]/point[2]])
+
+def getRealWorldPoint(M, point):
+    point = np.array([point[0], point[1], 1]).reshape(3, 1)
+    point = np.matmul(M, point)
+    return np.array([point[0] / point[2], point[1] / point[2]])
+
 
 def add_real_coordinates(points, object_map):
-    points=np.array(points,dtype="float32")
+    points = np.array(points, dtype="float32")
     (tl, tr, br, bl) = points
+
+    points = order_points(points)
+
+    (tl, tr, br, bl)=points
 
     # compute the width of the new image, which will be the
     # maximum distance between bottom-right and bottom-left
@@ -57,21 +62,31 @@ def add_real_coordinates(points, object_map):
     # compute the perspective transform matrix and then apply it
     M = cv2.getPerspectiveTransform(points, dst)
 
-    real_coordinates_array=[]
+    real_coordinates_array = []
+    max_x=0
+    max_y=0
+    min_x=None
+    min_y=None
     for obj_id in object_map:
-        obj=object_map.get(obj_id)
+        obj = object_map.get(obj_id)
         for appearance in obj.appearances:
-            real_coordinates=getRealWorldPoint(M,(appearance.center_col,appearance.center_row))
+            real_coordinates = getRealWorldPoint(M, (appearance.col+appearance.w//2, appearance.row+appearance.h))
             real_coordinates_array.append(real_coordinates)
-            appearance.real_coordinates=(int(real_coordinates[0]),int(real_coordinates[1]))
+            appearance.real_coordinates = (int(real_coordinates[0]), int(real_coordinates[1]))
 
-    #TEST
-    #img=cv2.imread("background.jpg")
-    #warped=cv2.warpPerspective(img,M,img.shape[:-1])
+            if max_x<appearance.real_coordinates[0]:
+                max_x=appearance.real_coordinates[0]
+            elif min_x is None or min_x>appearance.real_coordinates[0]:
+                min_x=appearance.real_coordinates[0]
 
-    real_coordinates_array=np.array(real_coordinates_array)
-    upper_left_limit=real_coordinates_array.min(axis=0)
-    lower_right_limit=real_coordinates_array.max(axis=0)
+            if max_y< appearance.real_coordinates[1]:
+                max_y=appearance.real_coordinates[1]
+            elif min_y is None or min_y>appearance.real_coordinates[1]:
+                min_y=appearance.real_coordinates[1]
+
+    # TEST
+    # img=cv2.imread("background.jpg")
+    # warped=cv2.warpPerspective(img,M,img.shape[:-1])
     """
     offsetX=int(upper_left_limit[0][0])
     offsetY=int(upper_left_limit[0][0])
@@ -89,4 +104,13 @@ def add_real_coordinates(points, object_map):
     cv2.waitKey()
     cv2.destroyWindow("img")
     """
-    return object_map,upper_left_limit.tolist(),lower_right_limit.tolist()
+    shoudler_width_values=[]
+    for id,obj in object_map.items():
+        for appearance in obj.appearances[::50]:
+            real_w_point_a=getRealWorldPoint(M,(appearance.col,appearance.row+appearance.h))
+            real_w_point_b = getRealWorldPoint(M, (appearance.col+appearance.w, appearance.row + appearance.h))
+            shoudler_width_values.append(Helper.distance(*real_w_point_a,*real_w_point_b))
+    mean=np.mean(shoudler_width_values)
+    one_meter=100*mean/PERSON_WIDTH
+
+    return object_map, [min_x,min_y], [max_x,max_y],int(one_meter)

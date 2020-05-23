@@ -1,9 +1,8 @@
 import cv2
-from utils.Constants import REPOSITORY_NAME
 from preprocessor import BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 from io_tools.annotations import MOTParser
-from helpers import Helper,LinearRegressionHelper
+from helpers import Helper,LinearRegressionHelper,OutfitHelper
 import threading
 from objects import Point
 
@@ -106,7 +105,10 @@ class Preprocessor:
                 appearance.col=col1
                 appearance.w=col2-col1
                 appearance.h=row2-row1
+
+        OutfitHelper.obtain_object_colors(self.video_obj, self.object_dict)
         VideoInfDAO.save_gt_adapted(self.video_obj, MOTParser.parse_back(self.new_frame_map, self.object_dict))
+
 
 
         print("Finished!")
@@ -176,5 +178,10 @@ def __draw_path__(path_image, points):
     for point in points[1:-1]:
         path_image=cv2.line(path_image, last_point, point, (0, 0, 255), 5, cv2.FILLED)
         last_point=point
-    path_image=cv2.arrowedLine(path_image, points[-min(len(points),5)],last_point, (0, 0, 255), 5, cv2.FILLED,tipLength=0.2)
+    second_last_point=points[-min(len(points),2)]
+    distance_last_points=Helper.distance(*second_last_point,*points[-1])
+    if distance_last_points==0:
+        distance_last_points=20
+    path_image=cv2.arrowedLine(path_image, second_last_point,points[-1], (0, 0, 255), 5, cv2.FILLED,tipLength=20/distance_last_points)
     return path_image
+

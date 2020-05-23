@@ -1,4 +1,4 @@
-from objects.VideoObject import Person
+from objects.VideoObject import VideoObject
 from objects.Appearance import Appearance
 from helpers import Helper
 from objects.Point import Point
@@ -21,7 +21,7 @@ class MOTParser():
             if (map.get(frame) == None):
                 map[frame] = []
             if objects.get(id) == None:
-                objects[id] = Person(id, [])
+                objects[id] = VideoObject(id, [])
 
             col = int(float(attr[2]))
             dif_col = 0
@@ -87,7 +87,7 @@ class MOTParser():
             if (map.get(frame) == None):
                 map[frame] = []
             if objects.get(id) == None:
-                objects[id] = Person(id, [])
+                objects[id] = VideoObject(id, [])
 
             # dif col and dif row is used to reduce the length(w and h) that we add correcting negative coordinates(col and row of upper left corner)
             col = int(float(attr[2]))
@@ -140,6 +140,26 @@ class MOTParser():
             objects[id].last_appearance = objects[id].appearances[-1].frame
             if attr[3]!="None":
                 objects[id].angle=float(attr[3])
+
+            upper_colors_raw = attr[4].split(';')[:-1] #because last one is empty (remember parse_back funct)
+            lower_colors_raw = attr[5].split(';')[:-1] #because last one is empty (remember parse_back funct)
+
+            upper_colors = []
+            lower_colors = []
+            for color_raw in upper_colors_raw:
+                color_raw = color_raw.split(':')
+                value= [int(i) for i in color_raw[1:]]  # convert string to int
+                color=color_raw[0]
+                upper_colors.append({'name':color,'value':value})
+
+            for color_raw in lower_colors_raw:
+                color_raw = color_raw.split(':')
+                value = [int(i) for i in color_raw[1:]]  # convert string to int
+                color = color_raw[0]
+                lower_colors.append({'name':color,'value':value})
+
+            objects[id].upper_colors = upper_colors
+            objects[id].lower_colors = lower_colors
         return objects,map
 
     def parse(self, remove_static_objects=False, iou_limit=IOU_LIMIT, static_porcentage_time=IOU_PORCENTAGE):
@@ -164,7 +184,13 @@ def parse_back(frame_map, object_dict):
 
     str.append(":\n")
     str.append("#{object.id},{object.portrait},{object.average_speed},{object.direction}\n")
-    for obj_id in object_dict:
-        obj=object_dict[obj_id]
-        str.append(f"{obj.id},{obj.portrait},{obj.average_speed},{obj.angle}\n")
+    for id,obj in object_dict.items():
+        str.append(f"{obj.id},{obj.portrait},{obj.average_speed},{obj.angle},")
+        for color in obj.upper_colors:
+            str.append(f"{color['name']}:{color['value'][0]}:{color['value'][1]}:{color['value'][2]};")
+
+        str.append(',')
+        for color in obj.lower_colors:
+            str.append(f"{color['name']}:{color['value'][0]}:{color['value'][1]}:{color['value'][2]};")
+        str.append('\n')
     return str

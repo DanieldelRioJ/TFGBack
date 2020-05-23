@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+from helpers import PerspectiveHelper
 import math
 
 import time
@@ -16,6 +17,14 @@ def bounding_box(points):
     return [(min(x_coordinates), min(y_coordinates)), (max(x_coordinates), max(y_coordinates))]
 
 def prueba():
+
+    pts=np.array([[166,161],[334,176],[249,213],[60,193]],dtype=int)
+    print(pts)
+    pts = np.array([[60, 193],[166, 161], [334, 176], [249, 213]], dtype=int)
+    pts=PerspectiveHelper.order_points(pts)
+    print(pts)
+
+    """
     pts1 = []
     circles=[]
 
@@ -45,9 +54,6 @@ def prueba():
     cardH = int(math.sqrt(
         (pts1[2][0] - pts1[1][0]) * (pts1[2][0] - pts1[1][0]) + (pts1[2][1] - pts1[1][1]) * (pts1[2][1] - pts1[1][1])))
     cardW =int( ratio * cardH);
-    """pts2 = np.float32(
-        [[pts1[0][0], pts1[0][1]], [pts1[0][0] + cardW, pts1[0][1]], [pts1[0][0] + cardW, pts1[0][1] + cardH],
-         [pts1[0][0], pts1[0][1] + cardH]])"""
     pts2=np.array([
 		[0, 0],
 		[cardW - 1, 0],
@@ -68,9 +74,63 @@ def prueba():
 
     plt.subplot(121), plt.imshow(img), plt.title('Input')
     plt.subplot(122), plt.imshow(dst), plt.title('Output')
+    plt.show()"""
+
+def pruebaHistogram():
+    img = cv2.imread('186.jpg')
+    img=img[0:img.shape[0]//2]
+    #img=img[img.shape[0]//2:]
+    cv2.imshow('original', img)
+
+
+    Z = img.reshape((-1, 3))
+
+    # convert to np.float32
+    Z = np.float32(Z)
+
+    start = time.time()
+
+    # define criteria, number of clusters(K) and apply kmeans()
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    K = 3
+    ret, label, center = cv2.kmeans(Z, K, None, criteria, 2, cv2.KMEANS_RANDOM_CENTERS)
+
+    end = time.time()
+    print(end - start)
+
+
+    # Now convert back into uint8, and make original image
+    center = np.uint8(center)
+    res = center[label.flatten()]
+    res2 = res.reshape((img.shape))
+
+    cv2.imshow('res2', res2)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def pruebaHistogramv1():
+    img1=cv2.imread("./img1.jpeg")
+    img1=img1//32
+    cv2.imshow("img",img1)
+    cv2.waitKey()
+    cv2.imshow("img", img1*32)
+    cv2.waitKey()
+    g,b,r=cv2.split(img1)
+    result=g+b*8+r*64
+    hist=cv2.calcHist([result],[0],None,[512],[0,510])
+    plt.plot(hist)
     plt.show()
 
-
+    max_value=np.argmax(hist)
+    r=max_value//64
+    max_value%=64
+    b=max_value//8
+    g=max_value%8
+    color=(g*32,b*32,r*32)
+    img=np.full((255,255,3),color,dtype=np.uint8)
+    cv2.imshow("img",img)
+    cv2.waitKey()
+    print(color)
 
 """
 def function(row):
