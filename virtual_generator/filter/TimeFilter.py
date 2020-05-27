@@ -21,18 +21,21 @@ def timeToFrame(t,fps):
 def inside_time_range(appearance, time_filter):
     return (time_filter['start']==None or time_filter['start']<=appearance.frame) and (time_filter['end']==None or appearance.frame<=time_filter['end'])
 
-def do_filter(object_list,time_filter:TimeFilter=None,fps=25):
+def do_filter(object_map, time_filter:TimeFilter=None, fps=25):
     if time_filter is None or not time_filter:
-        return object_list
+        return object_map
 
-    if time_filter['start']!=None:
+    if time_filter['start']!=None and time_filter['start']!='':
         time_filter['start']=timeToFrame(time_filter['start'], fps)
-    if time_filter['end'] != None:
+    else:
+        time_filter['start']=None
+    if time_filter['end'] != None and time_filter['end']!='':
         time_filter['end'] = timeToFrame(time_filter['end'], fps)
+    else:
+        time_filter['end']=None
 
     aux_list={}
-    for id in object_list:
-        obj=object_list[id]
+    for id,obj in object_map.items():
         if ( time_filter['start']==None or obj.appearances[-1].frame >= time_filter['start'] ) and ( time_filter["end"]==None or obj.appearances[0].frame <= time_filter['end'] ):
             aux_list[id]=obj #If its inside time range, add it
             obj.appearances=[appearance for appearance in obj.appearances if inside_time_range(appearance, time_filter)]

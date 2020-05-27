@@ -2,7 +2,7 @@ import cv2
 from preprocessor import BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 from io_tools.annotations import MOTParser
-from helpers import Helper,LinearRegressionHelper,OutfitHelper
+from helpers import Helper, LinearRegressionHelper, OutfitHelperRGB, OutfitHelperHSV
 import threading
 from objects import Point
 
@@ -106,7 +106,7 @@ class Preprocessor:
                 appearance.w=col2-col1
                 appearance.h=row2-row1
 
-        OutfitHelper.obtain_object_colors(self.video_obj, self.object_dict)
+        OutfitHelperHSV.obtain_object_colors(self.video_obj, self.object_dict)
         VideoInfDAO.save_gt_adapted(self.video_obj, MOTParser.parse_back(self.new_frame_map, self.object_dict))
 
 

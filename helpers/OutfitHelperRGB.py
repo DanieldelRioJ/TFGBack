@@ -14,6 +14,8 @@ def __obtain_colors__(img,K):
     ret, label, center = cv2.kmeans(Z, K, None, criteria, 2, cv2.KMEANS_RANDOM_CENTERS)
     center= center.astype(np.uint8)
 
+
+
     for c in center:
         b=c[0]
         c[0]=c[2]
@@ -38,7 +40,7 @@ def obtain_object_colors(video_obj, obj_dict):
     for id,obj in obj_dict.items():
         repetitions_up=np.zeros(len(PALETTE))
         repetitions_down=np.zeros(len(PALETTE))
-        for appearance in obj.appearances[::50]: #Use one picture each 50 (aprox 1 picture each 5 secs).
+        for appearance in obj.appearances[::10]: #Use one picture each 50 (aprox 1 picture each 5 secs).
             sprite=VideoInfDAO.get_sprite(video_obj,id,appearance.frame)
             upper_part = sprite[0:sprite.shape[0] // 2]
             lower_part=sprite[sprite.shape[0] // 2:]

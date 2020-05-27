@@ -8,7 +8,7 @@ def __is_group_in_list__(group,list):
 
 
 def do_filter(object_map,frame_map, units_per_meter, social_distance):
-    if social_distance['distance'] is None or units_per_meter is None:
+    if social_distance is None or social_distance.get('distance') is None or units_per_meter is None:
         return object_map,None
 
     distance=int(social_distance['distance'])*(1.7*units_per_meter) #+width of a person

@@ -208,7 +208,7 @@ def create_virtual_video(video_name:str):
     #Notify progress
     ProgressSocket.notify_progress(body['id'],0,'filtering')
 
-    pixels_per_meter=video_obj.perspective.one_meter if video_obj.perspective is not None else None
+    pixels_per_meter=video_obj.perspective.one_meter if video_obj.perspective!=None else None
     object_map,group_by_social_distance=FilterQuery.do_filter(object_map,frame_map,body,pixels_per_meter,fps=video_obj.fps_adapted)
 
     ProgressSocket.notify_progress(body['id'], 30, 'heatmap')
@@ -285,20 +285,30 @@ def get_virtual_video_part(video_name:str, virtual_id:str):
 #Create virtual video
 @video_controller.route('/<video_name>/perspective',methods=["POST"])
 def add_perspective_points(video_name:str):
-    points=request.json;
+    body=request.json
+    points=body.get('points')
+    ratio=body.get('ratio')
+    references=body.get('references')
     video_obj=VideoInfDAO.get_video(video_name)
     if video_obj is None:
         return f"Video {video_name} does not exists",404
 
-    object_map,frame_map=VideoInfDAO.get_video_objects(video_obj,adapted=True)
+    object_map, frame_map = VideoInfDAO.get_video_objects(video_obj, adapted=True)
+    if points is not None:
 
-    points=[(point['x'],point['y']) for point in points]
-    object_map,upper_left_limit,lower_left_limit, one_meter=PerspectiveHelper.add_real_coordinates(points,object_map)
 
-    video_obj.perspective=Perspective(upper_left_limit,lower_left_limit,points, one_meter)
-    video=VideoInfDAO.modify_video(video_obj)
-    VideoInfDAO.save_gt_adapted(video_obj, MOTParser.parse_back(frame_map, object_map))
-    return Response('',200,mimetype="application/json")
+
+        points=[(point['x'],point['y']) for point in points]
+        object_map,upper_left_limit,lower_left_limit, one_meter,converted_references=PerspectiveHelper.add_real_coordinates(points,object_map,references,ratio,video_obj.fps_adapted)
+
+        video_obj.perspective=Perspective(upper_left_limit,lower_left_limit,points, one_meter, references,converted_references)
+        video = VideoInfDAO.modify_video(video_obj)
+        VideoInfDAO.save_gt_adapted(video_obj, MOTParser.parse_back(frame_map, object_map))
+    else:
+        video_obj.perspective=None
+        video=VideoInfDAO.modify_video(video_obj)
+        VideoInfDAO.save_gt_adapted(video_obj, MOTParser.parse_back(frame_map, object_map))
+    return Response(jsonpickle.encode(video,unpicklable=False),200,mimetype="application/json")
 
 
 

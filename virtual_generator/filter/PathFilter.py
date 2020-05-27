@@ -3,7 +3,8 @@ import math
 def do_filter(object_list, path_filter):
     range=100 #20pixels max between filter path and real path
     path=path_filter.get('path')
-    if path ==None: return object_list
+    if path is None or path_filter is None:
+        return object_list
     aux_list={}
     for obj_id in object_list:
         obj=object_list.get(obj_id)

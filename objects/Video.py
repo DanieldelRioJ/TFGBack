@@ -13,8 +13,10 @@ class Video(object):
         self.perspective=None
 
 class Perspective(object):
-    def __init__(self,upper_left_limit,lower_right_limit,original_points, one_meter):
+    def __init__(self,upper_left_limit,lower_right_limit,original_points, one_meter, ref, converted_ref):
         self.upper_left_limit=upper_left_limit
         self.lower_right_limit=lower_right_limit
         self.original_points=original_points
         self.one_meter=one_meter
+        self.references=ref
+        self.converted_references=converted_ref
