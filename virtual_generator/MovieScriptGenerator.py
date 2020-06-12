@@ -50,7 +50,7 @@ def __generate_movie_script__(object_list):
     for frame_number in frame_group:
         group=frame_group[frame_number]
         #give us the first frame where we can include the object
-        frame_number= __first_frame_available__(frame_list,group, 1)
+        frame_number= __first_frame_available__(frame_list,group, first_possible_frame)
         print(frame_number,first_possible_frame)
         first_possible_frame=frame_number
         for obj in group:

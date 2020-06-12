@@ -1,14 +1,17 @@
 import cv2
+#from controllers.websockets import ProgressSocket
 from preprocessor import BackgroundGenerator3
 from io_tools.data import VideoInfDAO,DataSchemeCreator
 from io_tools.annotations import MOTParser
 from helpers import Helper, LinearRegressionHelper, OutfitHelperRGB, OutfitHelperHSV
 import threading
 from objects import Point
+from utils.Constants import CHUNK_SIZE,FPS_ADAPTED
 
 
 class Preprocessor:
     def __init__(self,video_obj,chunk_size=None):
+        from controllers.websockets import ProgressSocket
         self.video=cv2.VideoCapture(VideoInfDAO.get_original_video_path(video_obj))
         if not self.video.isOpened():
             raise FileNotFoundError
@@ -21,11 +24,11 @@ class Preprocessor:
         self.deleted_frames=[]
 
         #space between eliminations (1 = 1 frame between each elimination, 2=2 frame between elimination... etc)
-        if self.video_obj.fps>10:
-            rest=self.video_obj.fps-10
+        if self.video_obj.fps>FPS_ADAPTED:
+            rest=self.video_obj.fps-FPS_ADAPTED
             self.frame_space=self.video_obj.fps / rest;
-            self.video_obj.fps_adapted=10
-        else: #if fps is less than 10, dont do anything
+            self.video_obj.fps_adapted=FPS_ADAPTED
+        else: #if fps is less than FPS_ADAPTED, dont do anything
             self.video_obj.fps_adapted=self.video_obj.fps
             self.frame_space=-1
 
@@ -39,7 +42,7 @@ class Preprocessor:
         print(f"Name: movie.mp4, FPS: {self.video_obj.fps}, frames: {self.video_obj.frame_quantity}")
 
         self.finish=False
-        if chunk_size == None: chunk_size=4
+        if chunk_size == None: chunk_size=CHUNK_SIZE
         self.chunk_size=chunk_size
 
         print("CHUNK SIZE:"+str(chunk_size))
@@ -48,6 +51,7 @@ class Preprocessor:
         self.background = BackgroundGenerator3.Backgroundv3(self.frame_dict)
 
         first_real_frame=1
+        frame_quantity_adapted=self.video_obj.frame_quantity - self.eliminated_frame_number
         while not self.has_finished():
             imgs=self.process_next_chunk(first_real_frame)
             self.__process__(first_real_frame, imgs)
@@ -59,6 +63,7 @@ class Preprocessor:
             self.background.upgrade(first_real_frame, imgs[0])
             first_real_frame +=len(imgs)
             imgs.clear()
+            ProgressSocket.notify_preprocessing_progress(self.video_obj,int(first_real_frame*100/frame_quantity_adapted),"")
 
         background_image=self.background.get_background()
         VideoInfDAO.save_background(self.video_obj,background_image,30)
@@ -68,9 +73,10 @@ class Preprocessor:
         #Get more information (path, direction, speed etc).
         self.object_dict=Helper.convert_frame_map_to_object_map(self.new_frame_map,self.object_dict)
         #Calculate speed
-        for obj_id in self.object_dict:
-            obj=self.object_dict.get(obj_id)
+        for obj_id,obj in self.object_dict.items():
             appearances=obj.appearances
+            if appearances==None or len(appearances)==0:
+                continue
             last_appearance=appearances[0]
             biggerArea=0
             if(last_appearance.center_col==None):
@@ -106,14 +112,17 @@ class Preprocessor:
                 appearance.w=col2-col1
                 appearance.h=row2-row1
 
-        OutfitHelperHSV.obtain_object_colors(self.video_obj, self.object_dict)
+        #OutfitHelperHSV.obtain_object_colors(self.video_obj, self.object_dict)
+        OutfitHelperRGB.obtain_object_colors(self.video_obj, self.object_dict)
         VideoInfDAO.save_gt_adapted(self.video_obj, MOTParser.parse_back(self.new_frame_map, self.object_dict))
 
 
 
         print("Finished!")
+
         self.video_obj.frame_quantity_adapted=self.video_obj.frame_quantity-self.eliminated_frame_number
         self.video_obj.processed=True
+        ProgressSocket.notify_preprocessing_progress(self.video_obj, 100, "")
 
     def __process__(self, first_real_frame, imgs):
         i=-1

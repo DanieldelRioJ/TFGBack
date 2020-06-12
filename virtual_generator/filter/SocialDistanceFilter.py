@@ -58,13 +58,17 @@ def do_filter(object_map,frame_map, units_per_meter, social_distance):
     group_list=[]
     for _, obj in new_obj_map.items():
         if obj.group is not None and not __is_group_in_list__(obj.group,group_list):
-            group_list.append(group)
+            group_list.append(obj.group)
 
     for group in group_list:
         first_obj=next(iter(group.values()))
         first_app=first_obj.first_appearance
         last_app=first_obj.last_appearance
         for id,obj in group.items():
+            try:
+                a=obj.first_appearance
+            except AttributeError:
+                print("error")
             if obj.first_appearance< first_app:
                 first_app=obj.first_appearance
             if obj.last_appearance>last_app:

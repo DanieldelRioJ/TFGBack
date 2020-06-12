@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-def generateHeatMap(appearances, background):
+def generate_heatmap(appearances, background):
 
     shape=background.shape
     mask=np.ones(shape[:-1],int)

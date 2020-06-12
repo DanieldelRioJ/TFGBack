@@ -11,6 +11,9 @@ SPRITES_DIR="sprites"
 #person width in cm
 PERSON_WIDTH=70
 
+CHUNK_SIZE=40
+FPS_ADAPTED=10
+
 #Palette Colors (Color Filter)
 #blue,purple,pink,red,browmn,yellow,green,white,grey,black
 #RGB
@@ -27,7 +30,7 @@ PALETTE=[
 ]
 
 #FOR HSV (but in RGB)
-PALETTE=[
+"""PALETTE=[
     {'name':'black','value':(0,0,0)},
     {'name':'grey','value':(128, 128, 128)},
     {'name':'white','value':(255,255,255)},
@@ -36,5 +39,5 @@ PALETTE=[
     {'name':'green','value':(0, 255, 0)},
     {'name':'blue','value':(0, 0, 255)},
     {'name':'pink','value':(255, 120, 200)}
-]
+]"""
 #{'name':'brown','value':(139,69,19)},

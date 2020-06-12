@@ -38,7 +38,7 @@ class MOTParser():
                                     row,
                                     int(float(attr[4])) + dif_col,
                                     int(float(attr[5])) + dif_row,
-                                    float(attr[6]))
+                                    1)#float(attr[6]))
             objects[id].appearances.append(appearance)
             map.get(frame).append(appearance)
 
@@ -133,11 +133,14 @@ class MOTParser():
                 continue
             attr=line.replace('\n','').split(",")
             id=int(attr[0])
-            objects[id].portrait = attr[1]
+            obj=objects.get(id)
+            if obj==None:
+                continue
+            obj.portrait = attr[1]
             if attr[2]!='None':
-                objects[id].average_speed=float(attr[2])
-            objects[id].first_appearance=objects[id].appearances[0].frame
-            objects[id].last_appearance = objects[id].appearances[-1].frame
+                obj.average_speed=float(attr[2])
+            obj.first_appearance=obj.appearances[0].frame
+            obj.last_appearance = obj.appearances[-1].frame
             if attr[3]!="None":
                 objects[id].angle=float(attr[3])
 

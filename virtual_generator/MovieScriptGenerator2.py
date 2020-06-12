@@ -79,9 +79,31 @@ def __generate_movie_script__(object_list,groups):
                 first_frame_aux+=1
     return MovieScript(format(int(time.time() * 1000000),'x'),frame_list)
 
-
-
-
 #It tell us in wich frame can the object be included (remember that gt.txt frame number starts on 1, here we start also on 1)
 def __first_frame_available__(frame_list, frame_group, first_posible_frame=1):
-    return 1
+
+    first_group_frame_number=frame_group['first_appearance']
+
+    i = first_posible_frame
+    index=i
+    for index in range(i-1,len(frame_list)-1):
+        overlapped = False
+        for id,obj in frame_group.items():
+            if isinstance(obj, int): #first_appearance and last_appearance are part of the dict
+                continue
+            obj_a = obj.appearances[0]
+            if len(frame_list)<first_posible_frame+obj_a.frame-first_group_frame_number:
+                continue
+            frame=frame_list[index]
+            for appearance in frame.appearance_list:
+                if Helper.do_overlap(Point(obj_a.col, obj_a.row),
+                                     Point(obj_a.col + obj_a.w, obj_a.row + obj_a.h),
+                                     Point(appearance.col, appearance.row),
+                                     Point(appearance.col + appearance.w, appearance.row + appearance.h)):
+                    overlapped = True
+                    break
+            if overlapped:  # Hay un objeto ocupando el lugar
+                break
+        if not overlapped:  # El frame ya existe y está libre la zona
+            return index
+    return index

@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 def __calculate_speed__(object_map,one_meter,fps):
     for id,obj in object_map.items():
+        if len(obj.appearances)<2:
+            continue
         apA=obj.appearances[0]
         mean=0
         for appearance in obj.appearances[1:]:
@@ -53,7 +55,7 @@ def order_points_left(pts):
     return ordered_array,distances.min(),min_arg
 
 
-def getRealWorldPoint(M, point):
+def get_realworld_point(M, point):
     point = np.array([point[0], point[1], 1]).reshape(3, 1)
     point = np.matmul(M, point)
     return np.array([point[0] / point[2], point[1] / point[2]])
@@ -129,7 +131,7 @@ def add_real_coordinates(points, object_map,references,ratio,fps):
     for obj_id in object_map:
         obj = object_map.get(obj_id)
         for appearance in obj.appearances:
-            real_coordinates = getRealWorldPoint(M, (appearance.col+appearance.w//2, appearance.row+appearance.h))
+            real_coordinates = get_realworld_point(M, (appearance.col + appearance.w // 2, appearance.row + appearance.h))
             real_coordinates_array.append(real_coordinates)
             appearance.real_coordinates = (int(real_coordinates[0]), int(real_coordinates[1]))
 
@@ -147,8 +149,8 @@ def add_real_coordinates(points, object_map,references,ratio,fps):
     shoudler_width_values=[]
     for id,obj in object_map.items():
         for appearance in obj.appearances[::50]:
-            real_w_point_a=getRealWorldPoint(M,(appearance.col,appearance.row+appearance.h))
-            real_w_point_b = getRealWorldPoint(M, (appearance.col+appearance.w, appearance.row + appearance.h))
+            real_w_point_a=get_realworld_point(M, (appearance.col, appearance.row + appearance.h))
+            real_w_point_b = get_realworld_point(M, (appearance.col + appearance.w, appearance.row + appearance.h))
             shoudler_width_values.append(Helper.distance(*real_w_point_a,*real_w_point_b))
     mean=np.mean(shoudler_width_values)
     one_meter=100*mean/PERSON_WIDTH
@@ -161,7 +163,7 @@ def add_real_coordinates(points, object_map,references,ratio,fps):
         for array in references:
             new_array=[]
             for point in array:
-                new_point=getRealWorldPoint(M, (point['x'],point['y'])).tolist()
+                new_point=get_realworld_point(M, (point['x'], point['y'])).tolist()
                 new_array.append({'x':new_point[0][0],'y':new_point[1][0]})
             converted_references.append(new_array)
 

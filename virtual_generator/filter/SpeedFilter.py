@@ -30,7 +30,7 @@ def do_filter(obj_dict, speed_filter):
     if speed_filter_bool is None or all(speed == 0 for speed in speed_filter_bool):
         return obj_dict
 
-    speed_lists=[obj.average_speed for id,obj in obj_dict.items()]
+    speed_lists=[obj.average_speed for id,obj in obj_dict.items() if obj.average_speed!=None]
     mean = np.mean(speed_lists)
     std=np.std(speed_lists)
 
@@ -40,6 +40,8 @@ def do_filter(obj_dict, speed_filter):
     #Normal is >=-0.5std and <=0.5std
     #Fast is >0.5std and <1.5std, very fast is >=1.5std
     for id,obj in obj_dict.items():
+        if obj.average_speed is None:
+            continue
         desviation=obj.average_speed-mean
         if desviation<=-1.5*std and speed_filter_bool[0]:
             aux_dict[id]=obj
